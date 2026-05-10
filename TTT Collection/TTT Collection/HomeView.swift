@@ -165,7 +165,7 @@ struct EasterEggView: View {
     private let credits: [CreditRow] = [
         .init("Quality Assurance",     "BigMannn"),
         .init("Translations (German)", "Niko"),
-        .init("Translations (Other)",  "None yet — soon open sourced!\nContribute at github.com/nikos-projects/playbox",
+        .init("Translations (Other)",  "None yet!\nContribute at github.com/nikos-projects/playbox",
               link: URL(string: "https://github.com/nikos-projects/playbox")),
         .init("Coding",                "Gemini, Claude & DeepSeek\n(Prompts by Niko — \"Do i look like i know swift?\" – Niko, python dev, 2026)"),
         .init("Art",                   "App icon: Glow added by Gemini,\ninitially made by ChatGPT"),

@@ -29,28 +29,33 @@ private struct ChessPiece: Equatable {
         return color == .white ? base.uppercased() : base
     }
     
-    var imageName: String {
-        // Assets: PW/pB, BW/bB, NW/nB, RW/rB, QW/qB, KW/kB
-        // White = uppercase letter + "W", Black = lowercase letter + "B"
-        if color == .white {
-            switch type {
-            case .pawn:   return "PW"
-            case .rook:   return "RW"
-            case .knight: return "NW"
-            case .bishop: return "BW"
-            case .queen:  return "QW"
-            case .king:   return "KW"
-            }
-        } else {
-            switch type {
-            case .pawn:   return "pB"
-            case .rook:   return "rB"
-            case .knight: return "nB"
-            case .bishop: return "bB"
-            case .queen:  return "qB"
-            case .king:   return "kB"
-            }
+    /// Name of the sprite sheet asset: "white" or "black"
+    var spriteSheetName: String {
+        color == .white ? "white" : "black"
+    }
+
+    /// Index of this piece in the sprite sheet (left = 0).
+    /// Order in both "white" and "black" assets: bishop(0), king(1), knight(2), pawn(3), queen(4), rook(5)
+    var spriteIndex: Int {
+        switch type {
+        case .bishop: return 0
+        case .king:   return 1
+        case .knight: return 2
+        case .pawn:   return 3
+        case .queen:  return 4
+        case .rook:   return 5
         }
+    }
+
+    /// Crops the correct piece out of the 6-piece horizontal sprite sheet.
+    func spriteImage(cellSize: CGFloat) -> Image? {
+        guard let sheet = UIImage(named: spriteSheetName) else { return nil }
+        let totalCols = 6
+        let tileW = sheet.size.width / CGFloat(totalCols)
+        let tileH = sheet.size.height
+        let cropRect = CGRect(x: CGFloat(spriteIndex) * tileW, y: 0, width: tileW, height: tileH)
+        guard let cgImage = sheet.cgImage?.cropping(to: cropRect) else { return nil }
+        return Image(uiImage: UIImage(cgImage: cgImage, scale: sheet.scale, orientation: sheet.imageOrientation))
     }
 }
 
@@ -454,7 +459,7 @@ struct ChessView: View {
     
     @ViewBuilder
     private func cellView(row: Int, col: Int, size: CGFloat) -> some View {
-        let isDark = (row + col) % 2 == 1
+        let isDark = (row + col) % 2 == 0
         let piece = game.board[row][col]
         let isSelected = selectedPos?.r == row && selectedPos?.c == col
         
@@ -464,12 +469,13 @@ struct ChessView: View {
                 .frame(width: size, height: size)
             
             if let p = piece {
-                if let image = UIImage(named: p.imageName) {
-                    Image(uiImage: image)
+                if let image = p.spriteImage(cellSize: size) {
+                    image
                         .resizable()
+                        .interpolation(.high)
                         .frame(width: size * 0.7, height: size * 0.7)
                 } else {
-                    // Fallback
+                    // Fallback to letter symbols if assets are missing
                     Text(p.symbol)
                         .font(.system(size: size * 0.35))
                         .foregroundColor(p.color)
