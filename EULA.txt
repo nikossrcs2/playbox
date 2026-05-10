@@ -1,0 +1,7 @@
+By downloading anything in thiks project you automatically agree to this EULA.
+
+Assets: App Icon: This app icon was made by AI, ChatGPT and Gemini Nano Banana. By agreeing to this EULA you agree to the OpenAI Terms of Use (https://openai.com/de-DE/policies/row-terms-of-use/) and the google gemini Terms of Use (https://policies.google.com/terms). If you do not comply to these, please be aware of the consequences
+Background music: This background music was made by Google Lyria 3, and as such, the google Terms of Use apply aswell (https://policies.google.com/terms)
+
+
+Thats it for the EULA, now enjoy looking at the source of this project!
