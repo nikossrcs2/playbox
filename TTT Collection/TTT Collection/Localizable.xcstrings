@@ -1,0 +1,1130 @@
+{
+  "sourceLanguage" : "en",
+  "strings" : {
+    "—" : {
+      "shouldTranslate" : false
+    },
+    "%@ wins! 🎉" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ hat gewonnen! 🎉"
+          }
+        }
+      }
+    },
+    "%@'s turn" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@’s zug"
+          }
+        }
+      }
+    },
+    "%lld" : {
+      "shouldTranslate" : false
+    },
+    "%lld eps trained" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Episoden traniert"
+          }
+        }
+      }
+    },
+    "%lld moves" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld Züge"
+          }
+        }
+      }
+    },
+    "%lld moves · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld bewegt · %2$@"
+          }
+        }
+      }
+    },
+    "%lld ms" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld ms"
+          }
+        }
+      }
+    },
+    "%lld%%" : {
+      "shouldTranslate" : false
+    },
+    "%lldms" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lldms"
+          }
+        }
+      }
+    },
+    "+%lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+%lld"
+          }
+        }
+      }
+    },
+    "✨ You found it ✨" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "✨Du hast es gefunden!✨"
+          }
+        }
+      }
+    },
+    "🎉 New Best!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🎉 Neue Bestzahl!"
+          }
+        }
+      }
+    },
+    "🎉 New High Score!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🎉 Neuer Bestwert!"
+          }
+        }
+      }
+    },
+    "🏆" : {
+      "shouldTranslate" : false
+    },
+    "🐍" : {
+      "shouldTranslate" : false
+    },
+    "💀" : {
+      "shouldTranslate" : false
+    },
+    "💥" : {
+      "shouldTranslate" : false
+    },
+    "🕹️ Thanks for playing!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "🕹️ Danke für’s Spielen!"
+          }
+        }
+      }
+    },
+    "2048" : {
+      "shouldTranslate" : false
+    },
+    "AI" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KI"
+          }
+        }
+      }
+    },
+    "AI %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KI %@"
+          }
+        }
+      }
+    },
+    "Aim Trainer" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genauigkeitstrainer"
+          }
+        }
+      }
+    },
+    "Aim Training" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Genauigkeitstraining"
+          }
+        }
+      }
+    },
+    "All %lld levels complete\n%lld moves · %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Alle %1$lld Level durchgespielt\n%2$lld Züge · %3$@"
+          }
+        }
+      }
+    },
+    "Avg" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Durchschnitt"
+          }
+        }
+      }
+    },
+    "BEST" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BESTES"
+          }
+        }
+      }
+    },
+    "Best:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestes:"
+          }
+        }
+      }
+    },
+    "Best: %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bestes: %lld"
+          }
+        }
+      }
+    },
+    "BEST: %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BESTES: %lld"
+          }
+        }
+      }
+    },
+    "Bet: %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wette: %lld"
+          }
+        }
+      }
+    },
+    "BLACKJACK" : {
+      "shouldTranslate" : false
+    },
+    "Board %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feld %lld"
+          }
+        }
+      }
+    },
+    "Board rotates every 10 moves! 🔄" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Das Spielbrett bewegt sich alle 10 Züge! 🔄"
+          }
+        }
+      }
+    },
+    "Bot" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Bot"
+          }
+        }
+      }
+    },
+    "Both players place X — completing 3 in a row kills that board. Last player to cause a kill loses!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Beide Spieler platzieren X — \nbei dem Vervollständigen von 3 in einer\nReihe wird das Feld entfernt. Letzter\nSpieler, der ein Feld entfernt, verliert!"
+          }
+        }
+      }
+    },
+    "Brick Breaker" : {
+      "shouldTranslate" : false
+    },
+    "Cancel" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abbrechen"
+          }
+        }
+      }
+    },
+    "Chaos Mode" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chaos-Modus"
+          }
+        }
+      }
+    },
+    "Check!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schach!"
+          }
+        }
+      }
+    },
+    "Checkers" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dame"
+          }
+        }
+      }
+    },
+    "Chess" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Schach"
+          }
+        }
+      }
+    },
+    "Choose your piece this turn" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wähle dein Symbol"
+          }
+        }
+      }
+    },
+    "Classic games & variants" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klassische Spiele & Varianten"
+          }
+        }
+      }
+    },
+    "Classic TTT" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klassisches TTT"
+          }
+        }
+      }
+    },
+    "Clear" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leeren"
+          }
+        }
+      }
+    },
+    "Click Speed Test" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Klickgeschwindigkeitstest"
+          }
+        }
+      }
+    },
+    "Connect 4" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Vier Gewinnt"
+          }
+        }
+      }
+    },
+    "Continue Training" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Training Fortsetzen"
+          }
+        }
+      }
+    },
+    "Credits" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mitwirkende"
+          }
+        }
+      }
+    },
+    "Dead" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tot"
+          }
+        }
+      }
+    },
+    "Deal  (Bet: %lld)" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deal  (Wette: %lld)"
+          }
+        }
+      }
+    },
+    "DEALER" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DEALER"
+          }
+        }
+      }
+    },
+    "Dealer is playing…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dealer spielt…"
+          }
+        }
+      }
+    },
+    "Done" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fertig"
+          }
+        }
+      }
+    },
+    "Drag left/right to move paddle" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ziehe das Paddel nach Links/Rechts, um es zu bewegen"
+          }
+        }
+      }
+    },
+    "Draw" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unentschieden"
+          }
+        }
+      }
+    },
+    "Fetching today's word…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Esse gerade Kekse, dauert kurz bis das heutige Wordle ankommt…"
+          }
+        }
+      }
+    },
+    "Flappy Bird" : {
+      "shouldTranslate" : false
+    },
+    "Game Collection" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spielesammlung"
+          }
+        }
+      }
+    },
+    "Game Over" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spiel vorbei"
+          }
+        }
+      }
+    },
+    "GAME OVER" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SPIEL VORBEI"
+          }
+        }
+      }
+    },
+    "Game Over 💀" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spiel vorbei 💀"
+          }
+        }
+      }
+    },
+    "Here's everyone who made this possible:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hier sind alle, die dies ermöglicht haben:"
+          }
+        }
+      }
+    },
+    "Hit the targets. Accuracy matters.\n30 seconds. Ready?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Treffe die Ziele, Genauigkeit ist wichtig. 30 Sekunden. Bereit?"
+          }
+        }
+      }
+    },
+    "How Training Works" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "So funktioniert das Training"
+          }
+        }
+      }
+    },
+    "It's a draw!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Es ist ein Unentschieden! :("
+          }
+        }
+      }
+    },
+    "Level %lld Complete!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Level %lld fertig!"
+          }
+        }
+      }
+    },
+    "Memory Match" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Memory"
+          }
+        }
+      }
+    },
+    "Minesweeper" : {
+      "shouldTranslate" : false
+    },
+    "ms" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ms"
+          }
+        }
+      }
+    },
+    "Neural AI" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neurale KI"
+          }
+        }
+      }
+    },
+    "New Game" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Neues Spiel"
+          }
+        }
+      }
+    },
+    "NEW HIGH SCORE!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "NEUER BESTWERT!"
+          }
+        }
+      }
+    },
+    "NEXT" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "WEITER"
+          }
+        }
+      }
+    },
+    "Next Level →" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nächstes Level →"
+          }
+        }
+      }
+    },
+    "Next Round" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Nächste Runde"
+          }
+        }
+      }
+    },
+    "Notakto" : {
+      "shouldTranslate" : false
+    },
+    "O" : {
+      "shouldTranslate" : false
+    },
+    "PAUSED" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PAUSIERT"
+          }
+        }
+      }
+    },
+    "PERFECT +2" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "PERFEKT +2"
+          }
+        }
+      }
+    },
+    "Play Again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneut spielen"
+          }
+        }
+      }
+    },
+    "PLAY AGAIN" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "ERNEUT SPIELEN"
+          }
+        }
+      }
+    },
+    "Play anywhere" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Überall spielen"
+          }
+        }
+      }
+    },
+    "Player" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spieler"
+          }
+        }
+      }
+    },
+    "Player %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spieler %@"
+          }
+        }
+      }
+    },
+    "Reset" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zurücksetzen"
+          }
+        }
+      }
+    },
+    "Reset AI?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "KI zurücksetzen?"
+          }
+        }
+      }
+    },
+    "Reset Trained Weights" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainierte Gewichte zurücksetzen"
+          }
+        }
+      }
+    },
+    "SCORE" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "SCORE"
+          }
+        }
+      }
+    },
+    "Score:" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score:"
+          }
+        }
+      }
+    },
+    "Score: %lld" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Score: %lld"
+          }
+        }
+      }
+    },
+    "Session Results" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sitzungsergebnisse"
+          }
+        }
+      }
+    },
+    "Snake" : {
+      "shouldTranslate" : false
+    },
+    "Solitaire" : {
+      "shouldTranslate" : false
+    },
+    "Stalemate — Draw!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patt — Unentschieden!"
+          }
+        }
+      }
+    },
+    "Start" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Start"
+          }
+        }
+      }
+    },
+    "Start Game" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Spiel starten"
+          }
+        }
+      }
+    },
+    "Super TTT" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Super TTT"
+          }
+        }
+      }
+    },
+    "Tap a direction\nto start" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe auf einen Richtungspfeil, um zu starten"
+          }
+        }
+      }
+    },
+    "Tap screen to fly\nAvoid the pipes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe auf den Bildschirm, um zu fliegen.\nWeiche den Röhren aus"
+          }
+        }
+      }
+    },
+    "Tap targets as fast as possible.\n30 seconds. Ready?" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe Ziele so schnell wie möglich. \n30 Sekunden. Bereit?"
+          }
+        }
+      }
+    },
+    "Tap to reveal • Long press to flag" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe, um zu zeigen • Halten um zu markieren"
+          }
+        }
+      }
+    },
+    "Tap to Start" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tippe, um zu starten"
+          }
+        }
+      }
+    },
+    "Targets Hit" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ziele getroffen"
+          }
+        }
+      }
+    },
+    "TETRIS" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "TETRIS"
+          }
+        }
+      }
+    },
+    "The AI plays thousands of games against itself using Q-learning. It gets rewarded for winning and penalised for losing. After enough training it learns good strategies — then you can challenge it in-game by selecting **Neural AI** as the difficulty.\n\nWeights are saved on your device and persist across sessions. More episodes = smarter AI (aim for 3000+)." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Die KI absolviert tausende Spiele gegen sich selbst mittels Q-Learning. Siege werden belohnt, Niederlagen bestraft. Nach ausreichendem Training lernt sie effektive Strategien – anschließend kannst du sie im Spiel herausfordern, indem du **Neurale KI** als Schwierigkeitsgrad wählst.\n\nDie Gewichtungen werden auf deinem Gerät gespeichert und bleiben sitzungsübergreifend erhalten. Mehr Episoden bedeuten eine intelligentere KI (empfohlen sind 3000+)."
+          }
+        }
+      }
+    },
+    "Thinking…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Denkt…"
+          }
+        }
+      }
+    },
+    "This will erase all trained weights for %@." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Dies wird alle trainierten Gewichte für %@ löschen."
+          }
+        }
+      }
+    },
+    "Train %lld Episodes" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainiere %lld Episoden"
+          }
+        }
+      }
+    },
+    "Train Neural AI" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainiere Neurale KI"
+          }
+        }
+      }
+    },
+    "Train Neural AI — %@" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainiere Neurale KI — %@"
+          }
+        }
+      }
+    },
+    "Train your own AI to challenge it in-game. Tap the button below to start training!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainiere deine eigene KI, um sie Him Spiel herauszufordern. Tippe den Knopf um das Training zu starten!"
+          }
+        }
+      }
+    },
+    "Training %lld episodes…" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainiere %lld Episoden..."
+          }
+        }
+      }
+    },
+    "Training Batch Size" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainiere Chargengröße"
+          }
+        }
+      }
+    },
+    "Training Progress" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Trainingsfortschritt"
+          }
+        }
+      }
+    },
+    "Try Again" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erneut versuchen"
+          }
+        }
+      }
+    },
+    "Wild TTT" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wildes TTT"
+          }
+        }
+      }
+    },
+    "Wordle" : {
+      "shouldTranslate" : false
+    },
+    "X" : {
+      "shouldTranslate" : false
+    },
+    "YOU" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "DU"
+          }
+        }
+      }
+    },
+    "You Finished!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du bist fertig!"
+          }
+        }
+      }
+    },
+    "You Win! 🎉" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du hast gewonnen! 🎉"
+          }
+        }
+      }
+    },
+    "You Won!" : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Du hast gewonnen!"
+          }
+        }
+      }
+    },
+    "Your AI has been through %lld self-play episodes. Keep training to make it smarter, then select **Neural AI** difficulty to fight it." : {
+      "localizations" : {
+        "de" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deine KI hat %lld Self-Play-Episoden absolviert. Trainiere sie weiter, um sie intelligenter zu machen, und wähle dann den Schwierigkeitsgrad **Neurale KI**, um gegen sie anzutreten."
+          }
+        }
+      }
+    }
+  },
+  "version" : "1.1"
+}
