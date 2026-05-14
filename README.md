@@ -3,7 +3,8 @@ This is the repo for playbox, the games collection made by niko, QA by BigMannn.
 
 # How to use
 
-From the releases tab, grab yourself the .ipa and sideload with Ksign (khoindvn.io.vn) or sidestore (sidestore.io)
+From the releases tab, grab yourself the .ipa and sideload with Ksign (nikos-projects.github.io/ipa-distributor) or sidestore (sidestore.io)
+You also find PlayBox on my own project
 
 # Silly little star history
 
