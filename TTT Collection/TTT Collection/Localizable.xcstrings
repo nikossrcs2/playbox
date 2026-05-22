@@ -4,6 +4,9 @@
     "—" : {
       "shouldTranslate" : false
     },
+    "...and %lld more" : {
+
+    },
     "%@ wins! 🎉" : {
       "localizations" : {
         "de" : {
@@ -37,6 +40,26 @@
         }
       }
     },
+    "%lld file%@ changed" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld file%2$@ changed"
+          }
+        }
+      }
+    },
+    "%lld file%@ changed since your last check" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld file%2$@ changed since your last check"
+          }
+        }
+      }
+    },
     "%lld moves" : {
       "localizations" : {
         "de" : {
@@ -63,16 +86,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld ms"
-          }
-        }
-      }
-    },
-    "%lld new commit%@ since your last check" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld new commit%2$@ since your last check"
           }
         }
       }
@@ -274,16 +287,16 @@
         }
       }
     },
-    "Beta Development In Progress" : {
+    "Beta Development Detected" : {
 
     },
     "Beta Tracking" : {
 
     },
-    "Beta tracking may increase storage" : {
+    "Beta tracking stores file hashes (~5-10MB)" : {
 
     },
-    "Beta tracking may:" : {
+    "Beta tracking will:" : {
 
     },
     "Beta Update Available" : {
@@ -344,9 +357,6 @@
     "Brick Breaker" : {
       "shouldTranslate" : false
     },
-    "by %@" : {
-
-    },
     "Cancel" : {
       "localizations" : {
         "de" : {
@@ -356,6 +366,12 @@
           }
         }
       }
+    },
+    "Changed files:" : {
+
+    },
+    "Changed Files:" : {
+
     },
     "Chaos Mode" : {
       "localizations" : {
@@ -568,6 +584,9 @@
         }
       }
     },
+    "Fetch Latest Changes" : {
+
+    },
     "Fetching today's word…" : {
       "localizations" : {
         "de" : {
@@ -663,9 +682,6 @@
         }
       }
     },
-    "Important Note" : {
-
-    },
     "Install directly (requires device registration)" : {
 
     },
@@ -681,12 +697,6 @@
           }
         }
       }
-    },
-    "Latest Commit" : {
-
-    },
-    "Latest commit:" : {
-
     },
     "Level %lld Complete!" : {
       "localizations" : {
@@ -869,13 +879,7 @@
         }
       }
     },
-    "Prerelease Available" : {
-
-    },
-    "Prerelease: %@" : {
-
-    },
-    "Recent commits found in the last 7 days" : {
+    "Refresh File Cache" : {
 
     },
     "Releases" : {
@@ -944,10 +948,10 @@
         }
       }
     },
-    "See if a stable version is available" : {
+    "See changes on GitHub" : {
 
     },
-    "See what's being worked on" : {
+    "See if a stable version is available" : {
 
     },
     "Session Results" : {
@@ -1003,6 +1007,9 @@
       }
     },
     "Storage" : {
+
+    },
+    "Storage & Data Warning" : {
 
     },
     "Super TTT" : {
@@ -1095,9 +1102,6 @@
         }
       }
     },
-    "The developer is actively working on new features" : {
-
-    },
     "Thinking…" : {
       "localizations" : {
         "de" : {
@@ -1117,9 +1121,6 @@
           }
         }
       }
-    },
-    "Tip: You can disable beta tracking in Settings" : {
-
     },
     "Train %lld Episodes" : {
       "localizations" : {
@@ -1201,19 +1202,19 @@
         }
       }
     },
+    "Update cached file information" : {
+
+    },
     "Updates" : {
 
     },
     "Version %@" : {
 
     },
-    "View on GitHub" : {
-
-    },
-    "View Prerelease" : {
-
-    },
     "View Repository" : {
+
+    },
+    "View Repository on GitHub" : {
 
     },
     "What would you like to do?" : {
@@ -1241,7 +1242,7 @@
     "X" : {
       "shouldTranslate" : false
     },
-    "Yes, Notify Me" : {
+    "Yes, Track Beta Updates" : {
 
     },
     "YOU" : {

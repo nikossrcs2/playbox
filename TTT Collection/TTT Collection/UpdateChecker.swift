@@ -37,21 +37,47 @@ struct CommitAuthor: Codable {
     let date: String
 }
 
+struct GitHubTree: Codable {
+    let sha: String
+    let tree: [GitHubTreeItem]
+    let truncated: Bool
+}
+
+struct GitHubTreeItem: Codable {
+    let path: String
+    let mode: String
+    let type: String
+    let sha: String
+    let size: Int?
+    let url: String
+}
+
+struct GitHubContent: Codable {
+    let name: String
+    let path: String
+    let sha: String
+    let size: Int
+    let url: String
+    let html_url: String
+    let download_url: String?
+    let type: String
+    let content: String?
+    let encoding: String?
+}
+
 // MARK: - Version Parser
 
 struct AppVersion: Comparable {
-    let platform: String  // "AP" for Apple, "AND" for Android
+    let platform: String
     let major: Int
     let minor: Int
     let patch: Int
     
     init?(from tag: String) {
-        // Format: AP4.5_AND0.6 or AP1.2.3_AND1.2.3
         let components = tag.split(separator: "_")
         guard components.count == 2 else { return nil }
         
         func parseVersion(_ versionStr: String) -> (platform: String, major: Int, minor: Int, patch: Int)? {
-            // Extract platform prefix (AP or AND)
             let platformPrefix: String
             let numberStr: String
             
@@ -76,10 +102,9 @@ struct AppVersion: Comparable {
             return nil
         }
         
-        guard let apVersion = parseVersion(String(components[0])),
-              let andVersion = parseVersion(String(components[1])) else { return nil }
+        guard let apVersion = parseVersion(String(components[0])) else { return nil }
         
-        self.platform = "AP"  // We only care about Apple platform
+        self.platform = "AP"
         self.major = apVersion.major
         self.minor = apVersion.minor
         self.patch = apVersion.patch
@@ -104,7 +129,15 @@ struct AppVersion: Comparable {
     }
 }
 
-// MARK: - Update Checker
+// MARK: - File Hash Cache
+
+struct FileHashCache: Codable {
+    let commitSha: String
+    let files: [String: String]  // path -> hash
+    let lastUpdated: Date
+}
+
+// MARK: - Update Checker (iOS-compatible)
 
 class UpdateChecker: ObservableObject {
     static let shared = UpdateChecker()
@@ -114,18 +147,26 @@ class UpdateChecker: ObservableObject {
     @Published var betaUpdateAvailable: BetaUpdateInfo?
     @Published var showUpdatePrompt = false
     @Published var showBetaPrompt = false
+    @Published var downloadProgress: Double = 0
+    @Published var downloadStatus: String = ""
+    @Published var isDownloading = false
+    @Published var showCloneConfirmation = false
     
     let repoOwner = "nikos-projects"
     let repoName = "playbox"
     let userDefaultsKey = "lastUpdateCheck"
     let betaOptInKey = "betaOptIn"
     let lastBetaCheckKey = "lastBetaCheck"
-    let lastCommitShaKey = "lastCommitSha"
+    let fileHashCacheKey = "fileHashCache"
     
     private var checkTimer: Timer?
     
+    // Track which files we've downloaded for comparison
+    private var downloadedFileHashes: [String: String] = [:]
+    
     private init() {
         startPeriodicChecks()
+        loadFileHashCache()
     }
     
     deinit {
@@ -133,7 +174,6 @@ class UpdateChecker: ObservableObject {
     }
     
     private func startPeriodicChecks() {
-        // Check every 24 hours
         checkTimer = Timer.scheduledTimer(withTimeInterval: 24 * 60 * 60, repeats: true) { [weak self] _ in
             self?.checkForUpdates()
             if UserDefaults.standard.bool(forKey: self?.betaOptInKey ?? "") {
@@ -142,11 +182,155 @@ class UpdateChecker: ObservableObject {
         }
     }
     
+    // MARK: - File Storage
+    
+    private var cacheDirectory: URL {
+        let paths = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
+        let cacheDir = paths[0].appendingPathComponent("playbox_beta_cache")
+        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
+        return cacheDir
+    }
+    
+    private func loadFileHashCache() {
+        if let data = UserDefaults.standard.data(forKey: fileHashCacheKey),
+           let cache = try? JSONDecoder().decode(FileHashCache.self, from: data) {
+            downloadedFileHashes = cache.files
+        }
+    }
+    
+    private func saveFileHashCache(commitSha: String) {
+        let cache = FileHashCache(
+            commitSha: commitSha,
+            files: downloadedFileHashes,
+            lastUpdated: Date()
+        )
+        if let data = try? JSONEncoder().encode(cache) {
+            UserDefaults.standard.set(data, forKey: fileHashCacheKey)
+        }
+    }
+    
+    // MARK: - Download and Compare Repository Files
+    
+    func downloadAndCompareRepository(progress: @escaping (Double, String) -> Void, completion: @escaping (Bool, Bool, Error?) -> Void) {
+        DispatchQueue.global(qos: .userInitiated).async { [weak self] in
+            guard let self = self else { return }
+            
+            progress(0.05, "Fetching repository tree...")
+            
+            // Get the repository file tree
+            let treeURL = URL(string: "https://api.github.com/repos/\(self.repoOwner)/\(self.repoName)/git/trees/main?recursive=1")!
+            
+            let semaphore = DispatchSemaphore(value: 0)
+            var tree: GitHubTree?
+            var error: Error?
+            
+            var request = URLRequest(url: treeURL)
+            request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+            
+            URLSession.shared.dataTask(with: request) { data, _, taskError in
+                error = taskError
+                if let data = data {
+                    tree = try? JSONDecoder().decode(GitHubTree.self, from: data)
+                }
+                semaphore.signal()
+            }.resume()
+            
+            semaphore.wait()
+            
+            guard let tree = tree, error == nil else {
+                DispatchQueue.main.async {
+                    completion(false, false, error)
+                }
+                return
+            }
+            
+            progress(0.1, "Analyzing \(tree.tree.count) files...")
+            
+            // Filter for Swift files and important project files
+            let relevantFiles = tree.tree.filter { item in
+                let ext = (item.path as NSString).pathExtension
+                return ext == "swift" || ext == "xcodeproj" || ext == "xcworkspace" || item.path.contains(".pbxproj")
+            }
+            
+            var newHashes: [String: String] = [:]
+            var changedFiles: [String] = []
+            var totalProcessed = 0
+            
+            for file in relevantFiles {
+                totalProcessed += 1
+                progress(0.1 + (Double(totalProcessed) / Double(relevantFiles.count)) * 0.8,
+                        "Checking: \(file.path)")
+                
+                // Get file content hash (just the SHA, don't download full content)
+                newHashes[file.path] = file.sha
+                
+                // Compare with cached hash
+                if let cachedHash = self.downloadedFileHashes[file.path], cachedHash != file.sha {
+                    changedFiles.append(file.path)
+                }
+            }
+            
+            // Update cache
+            self.downloadedFileHashes = newHashes
+            self.saveFileHashCache(commitSha: tree.sha)
+            
+            progress(1.0, "Analysis complete")
+            
+            let hasChanges = !changedFiles.isEmpty
+            DispatchQueue.main.async {
+                completion(true, hasChanges, nil)
+                if hasChanges {
+                    self.betaUpdateAvailable = BetaUpdateInfo(
+                        hasNewCommits: true,
+                        commitCount: changedFiles.count,
+                        latestCommit: nil,
+                        changedFiles: changedFiles
+                    )
+                    self.showBetaPrompt = true
+                }
+            }
+        }
+    }
+    
+    // MARK: - Simple Remote Check (No Download)
+    
+    func checkRemoteForChanges(completion: @escaping (Bool, Int, [String]?) -> Void) {
+        let treeURL = URL(string: "https://api.github.com/repos/\(repoOwner)/\(repoName)/git/trees/main?recursive=1")!
+        
+        var request = URLRequest(url: treeURL)
+        request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
+        
+        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
+            guard let data = data, error == nil,
+                  let tree = try? JSONDecoder().decode(GitHubTree.self, from: data) else {
+                completion(false, 0, nil)
+                return
+            }
+            
+            let relevantFiles = tree.tree.filter { item in
+                let ext = (item.path as NSString).pathExtension
+                return ext == "swift" || ext == "xcodeproj" || item.path.contains(".pbxproj")
+            }
+            
+            var changedFiles: [String] = []
+            for file in relevantFiles {
+                if let cachedHash = self?.downloadedFileHashes[file.path], cachedHash != file.sha {
+                    changedFiles.append(file.path)
+                } else if self?.downloadedFileHashes[file.path] == nil {
+                    // New file
+                    changedFiles.append(file.path)
+                }
+            }
+            
+            completion(!changedFiles.isEmpty, changedFiles.count, changedFiles)
+        }.resume()
+    }
+    
     // MARK: - Release Check
     
     func checkForUpdates(force: Bool = false) {
         let lastCheck = UserDefaults.standard.object(forKey: userDefaultsKey) as? Date ?? .distantPast
-        if !force && Date().timeIntervalSince(lastCheck) < 3600 { return } // Don't check more than once per hour
+        if !force && Date().timeIntervalSince(lastCheck) < 3600 { return }
         
         isChecking = true
         UserDefaults.standard.set(Date(), forKey: userDefaultsKey)
@@ -163,7 +347,6 @@ class UpdateChecker: ObservableObject {
                     let releases = try JSONDecoder().decode([GitHubRelease].self, from: data)
                     let currentVersion = self?.getCurrentAppVersion()
                     
-                    // Find latest non-prerelease release
                     let latestRelease = releases.first { !$0.prerelease }
                     
                     if let release = latestRelease,
@@ -185,16 +368,40 @@ class UpdateChecker: ObservableObject {
         }.resume()
     }
     
-    // MARK: - Beta Check
+    // MARK: - Beta Tracking
     
     func optIntoBetaTracking() {
         UserDefaults.standard.set(true, forKey: betaOptInKey)
-        checkForBetaUpdates(force: true)
+        DispatchQueue.main.async {
+            self.showCloneConfirmation = true
+        }
+    }
+    
+    func performInitialDownload() {
+        isDownloading = true
+        downloadAndCompareRepository { [weak self] progress, status in
+            DispatchQueue.main.async {
+                self?.downloadProgress = progress
+                self?.downloadStatus = status
+            }
+        } completion: { [weak self] success, hasChanges, error in
+            DispatchQueue.main.async {
+                self?.isDownloading = false
+                if success && hasChanges {
+                    self?.checkForBetaUpdates(force: true)
+                }
+            }
+        }
     }
     
     func optOutOfBetaTracking() {
         UserDefaults.standard.set(false, forKey: betaOptInKey)
-        UserDefaults.standard.removeObject(forKey: lastCommitShaKey)
+        UserDefaults.standard.removeObject(forKey: fileHashCacheKey)
+        
+        // Clear cached files
+        try? FileManager.default.removeItem(at: cacheDirectory)
+        downloadedFileHashes.removeAll()
+        
         betaUpdateAvailable = nil
     }
     
@@ -210,67 +417,16 @@ class UpdateChecker: ObservableObject {
         
         UserDefaults.standard.set(Date(), forKey: lastBetaCheckKey)
         
-        // Get latest commits from main branch
-        let urlString = "https://api.github.com/repos/\(repoOwner)/\(repoName)/commits?per_page=5"
-        guard let url = URL(string: urlString) else { return }
-        
-        URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
-            guard let data = data, error == nil else { return }
-            
-            do {
-                let commits = try JSONDecoder().decode([GitHubCommit].self, from: data)
-                guard let latestCommit = commits.first else { return }
-                
-                DispatchQueue.main.async {
-                    self?.checkForBetaWork(commits: commits, latestCommit: latestCommit)
-                }
-            } catch {
-                print("Failed to decode commits: \(error)")
-            }
-        }.resume()
-    }
-    
-    private func checkForBetaWork(commits: [GitHubCommit], latestCommit: GitHubCommit) {
-        let lastCommitSha = UserDefaults.standard.string(forKey: lastCommitShaKey)
-        
-        if lastCommitSha == nil {
-            // First time - store current commit
-            UserDefaults.standard.set(latestCommit.sha, forKey: lastCommitShaKey)
-            return
-        }
-        
-        if lastCommitSha != latestCommit.sha {
-            // New commits detected - check recency
-            let commitDate = ISO8601DateFormatter().date(from: latestCommit.commit.author.date) ?? Date()
-            let daysSinceCommit = Calendar.current.dateComponents([.day], from: commitDate, to: Date()).day ?? 0
-            
-            if daysSinceCommit <= 7 {
-                // Find if there's a release in progress (check for prerelease tags)
-                let releaseUrlString = "https://api.github.com/repos/\(repoOwner)/\(repoName)/releases"
-                if let url = URL(string: releaseUrlString) {
-                    URLSession.shared.dataTask(with: url) { [weak self] data, _, _ in
-                        if let data = data,
-                           let releases = try? JSONDecoder().decode([GitHubRelease].self, from: data) {
-                            let prerelease = releases.first { $0.prerelease }
-                            DispatchQueue.main.async {
-                                self?.betaUpdateAvailable = BetaUpdateInfo(
-                                    hasNewCommits: true,
-                                    commitCount: commits.count,
-                                    latestCommit: latestCommit,
-                                    prerelease: prerelease
-                                )
-                                self?.showBetaPrompt = true
-                            }
-                        }
-                    }.resume()
-                } else {
-                    betaUpdateAvailable = BetaUpdateInfo(
+        checkRemoteForChanges { [weak self] hasChanges, count, files in
+            DispatchQueue.main.async {
+                if hasChanges {
+                    self?.betaUpdateAvailable = BetaUpdateInfo(
                         hasNewCommits: true,
-                        commitCount: commits.count,
-                        latestCommit: latestCommit,
-                        prerelease: nil
+                        commitCount: count,
+                        latestCommit: nil,
+                        changedFiles: files
                     )
-                    showBetaPrompt = true
+                    self?.showBetaPrompt = true
                 }
             }
         }
@@ -282,8 +438,6 @@ class UpdateChecker: ObservableObject {
         let bundleVersion = Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "0.0"
         let bundleBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
         
-        // Try to parse from build settings or use a default
-        // In a real app, you'd set this in your build script
         let versionString = "AP\(bundleVersion)_AND0.\(bundleBuild)"
         return AppVersion(from: versionString) ?? AppVersion(from: "AP0.0_AND0.0")
     }
@@ -299,8 +453,8 @@ struct UpdateInfo {
 struct BetaUpdateInfo {
     let hasNewCommits: Bool
     let commitCount: Int
-    let latestCommit: GitHubCommit
-    let prerelease: GitHubRelease?
+    let latestCommit: GitHubCommit?
+    let changedFiles: [String]?
 }
 
 // MARK: - Update Prompt View
@@ -308,13 +462,11 @@ struct BetaUpdateInfo {
 struct UpdatePromptView: View {
     @Environment(\.dismiss) private var dismiss
     let updateInfo: UpdateInfo
-    @State private var showingOTADownload = false
     
     var body: some View {
         NavigationView {
             ScrollView {
                 VStack(spacing: 24) {
-                    // Header
                     Image(systemName: "arrow.down.circle.fill")
                         .font(.system(size: 70))
                         .foregroundColor(.blue)
@@ -329,7 +481,6 @@ struct UpdatePromptView: View {
                         .fontWeight(.semibold)
                         .foregroundColor(.blue)
                     
-                    // Release notes
                     if let releaseNotes = updateInfo.release.body {
                         VStack(alignment: .leading, spacing: 12) {
                             Text("What's New:")
@@ -345,7 +496,6 @@ struct UpdatePromptView: View {
                         .cornerRadius(12)
                     }
                     
-                    // Install options
                     VStack(alignment: .leading, spacing: 16) {
                         Text("Install Options:")
                             .font(.headline)
@@ -445,42 +595,35 @@ struct BetaUpdatePromptView: View {
                     
                     VStack(alignment: .leading, spacing: 16) {
                         HStack {
-                            Image(systemName: "clock.fill")
-                                .foregroundColor(.blue)
-                            Text("Recent commits found in the last 7 days")
-                                .font(.body)
-                        }
-                        
-                        HStack {
                             Image(systemName: "doc.text.fill")
                                 .foregroundColor(.green)
-                            Text("\(betaInfo.commitCount) new commit\(betaInfo.commitCount > 1 ? "s" : "") since your last check")
+                            Text("\(betaInfo.commitCount) file\(betaInfo.commitCount > 1 ? "s" : "") changed")
                                 .font(.body)
                         }
                         
-                        if let prerelease = betaInfo.prerelease {
-                            HStack {
-                                Image(systemName: "tag.fill")
-                                    .foregroundColor(.purple)
-                                Text("Prerelease: \(prerelease.tag_name)")
-                                    .font(.body)
+                        if let files = betaInfo.changedFiles, !files.isEmpty {
+                            VStack(alignment: .leading, spacing: 8) {
+                                Text("Changed files:")
+                                    .font(.headline)
+                                    .padding(.top, 8)
+                                
+                                ForEach(files.prefix(5), id: \.self) { file in
+                                    HStack {
+                                        Image(systemName: "doc")
+                                            .font(.caption)
+                                        Text(file)
+                                            .font(.caption)
+                                            .foregroundColor(.secondary)
+                                    }
+                                }
+                                
+                                if files.count > 5 {
+                                    Text("...and \(files.count - 5) more")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
                             }
                         }
-                        
-                        Divider()
-                        
-                        Text("Latest commit:")
-                            .font(.headline)
-                        
-                        Text(betaInfo.latestCommit.commit.message)
-                            .font(.subheadline)
-                            .foregroundColor(.secondary)
-                            .padding(.leading)
-                        
-                        Text("by \(betaInfo.latestCommit.commit.author.name)")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .padding(.leading)
                     }
                     .padding()
                     .background(Color(.secondarySystemGroupedBackground))
@@ -491,17 +634,21 @@ struct BetaUpdatePromptView: View {
                             .font(.headline)
                         
                         Button {
-                            if let url = URL(string: "https://github.com/\(updateChecker.repoOwner)/\(updateChecker.repoName)") {
-                                UIApplication.shared.open(url)
+                            updateChecker.downloadAndCompareRepository { progress, status in
+                                // Update UI if needed
+                            } completion: { success, hasChanges, error in
+                                if success {
+                                    dismiss()
+                                }
                             }
                         } label: {
                             HStack {
                                 Image(systemName: "arrow.down.doc")
                                     .font(.title2)
                                 VStack(alignment: .leading) {
-                                    Text("View Repository")
+                                    Text("Fetch Latest Changes")
                                         .font(.system(size: 16, weight: .semibold))
-                                    Text("See what's being worked on")
+                                    Text("Update cached file information")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -540,6 +687,31 @@ struct BetaUpdatePromptView: View {
                         .buttonStyle(.plain)
                         
                         Button {
+                            if let url = URL(string: "https://github.com/nikos-projects/playbox") {
+                                UIApplication.shared.open(url)
+                            }
+                        } label: {
+                            HStack {
+                                Image(systemName: "link.circle")
+                                    .font(.title2)
+                                VStack(alignment: .leading) {
+                                    Text("View Repository")
+                                        .font(.system(size: 16, weight: .semibold))
+                                    Text("See changes on GitHub")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                }
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.caption)
+                            }
+                            .padding()
+                            .background(Color(.secondarySystemGroupedBackground))
+                            .cornerRadius(12)
+                        }
+                        .buttonStyle(.plain)
+                        
+                        Button {
                             dismiss()
                         } label: {
                             HStack {
@@ -556,11 +728,6 @@ struct BetaUpdatePromptView: View {
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal)
-                    
-                    Text("Tip: You can disable beta tracking in Settings")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.top)
                 }
                 .padding()
             }
@@ -582,6 +749,7 @@ struct BetaOptInView: View {
     @AppStorage("betaOptIn") private var betaOptIn = false
     @AppStorage("hasSeenBetaPrompt") private var hasSeenBetaPrompt = false
     @Environment(\.dismiss) private var dismiss
+    @ObservedObject private var updateChecker = UpdateChecker.shared
     
     var body: some View {
         NavigationView {
@@ -620,10 +788,11 @@ struct BetaOptInView: View {
                     Button {
                         betaOptIn = true
                         hasSeenBetaPrompt = true
-                        UpdateChecker.shared.optIntoBetaTracking()
+                        updateChecker.optIntoBetaTracking()
+                        updateChecker.performInitialDownload()
                         dismiss()
                     } label: {
-                        Text("Yes, Notify Me")
+                        Text("Yes, Track Beta Updates")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -669,19 +838,20 @@ struct WarningCard: View {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.yellow)
-                Text("Important Note")
+                Text("Storage & Data Warning")
                     .font(.headline)
                     .foregroundColor(.yellow)
             }
             
-            Text("Beta tracking may:")
+            Text("Beta tracking will:")
                 .font(.subheadline)
                 .fontWeight(.semibold)
             
-            BulletPoint(text: "Increase app storage usage by up to 3x or more")
-            BulletPoint(text: "Include unstable or unfinished features")
-            BulletPoint(text: "Cause occasional crashes or data loss")
-            BulletPoint(text: "Require more frequent updates")
+            BulletPoint(text: "Store file hashes for comparison (not full files)")
+            BulletPoint(text: "Use ~5-10MB of additional storage")
+            BulletPoint(text: "Make API calls to GitHub regularly")
+            BulletPoint(text: "Notify you when remote files change")
+            BulletPoint(text: "Never download full source code (just metadata)")
         }
         .padding()
         .background(Color.yellow.opacity(0.1))

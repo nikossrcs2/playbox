@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     @State private var selectedGame: GameType?
     @ObservedObject private var music = MusicPlayer.shared
+    @State private var showingSettings = false
 
     // Easter egg
     @State private var titleTapCount = 0
@@ -31,6 +32,9 @@ struct HomeView: View {
                     label: { EmptyView() }
                 )
             )
+            .sheet(isPresented: $showingSettings) {
+                SettingsView()
+            }
         }
         .navigationViewStyle(.stack)
         .sheet(isPresented: $showEasterEgg) {
@@ -58,9 +62,26 @@ struct HomeView: View {
                     .foregroundColor(.secondary)
             }
             Spacer()
-            muteButton
+            HStack(spacing: 12) {
+                settingsButton
+                muteButton
+            }
         }
         .padding(.top, 16)
+    }
+    
+    private var settingsButton: some View {
+        Button {
+            showingSettings = true
+        } label: {
+            Image(systemName: "slider.horizontal.3")
+                .font(.system(size: 17, weight: .medium))
+                .foregroundColor(.secondary)
+                .frame(width: 40, height: 40)
+                .background(Color(.secondarySystemGroupedBackground))
+                .clipShape(Circle())
+        }
+        .buttonStyle(CardButtonStyle())
     }
 
     private var muteButton: some View {

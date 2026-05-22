@@ -63,6 +63,9 @@ struct SettingsView: View {
                                     Text("Beta Update Available")
                                         .foregroundColor(.orange)
                                     Spacer()
+                                    Text("\(betaInfo.commitCount) file\(betaInfo.commitCount > 1 ? "s" : "") changed")
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
                                     Image(systemName: "chevron.right")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
@@ -98,7 +101,7 @@ struct SettingsView: View {
                         HStack {
                             Image(systemName: "exclamationmark.triangle.fill")
                                 .foregroundColor(.yellow)
-                            Text("Beta tracking may increase storage")
+                            Text("Beta tracking stores file hashes (~5-10MB)")
                                 .font(.caption)
                                 .foregroundColor(.secondary)
                         }
@@ -129,7 +132,6 @@ struct SettingsView: View {
     }
     
     private func getAppSize() -> String {
-        // Calculate app size from documents and caches
         let documentsSize = getDirectorySize(at: FileManager.default.urls(for: .documentDirectory, in: .userDomainMask).first)
         let cachesSize = getDirectorySize(at: FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first)
         let totalSize = documentsSize + cachesSize
@@ -163,10 +165,11 @@ struct BetaUpdateDetailView: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
                 headerSection
-                commitSection
-                if let prerelease = betaInfo.prerelease {
-                    prereleaseSection(prerelease: prerelease)
+                
+                if let files = betaInfo.changedFiles, !files.isEmpty {
+                    changedFilesSection(files: files)
                 }
+                
                 actionSection
             }
             .padding()
@@ -181,12 +184,12 @@ struct BetaUpdateDetailView: View {
                 Image(systemName: "hammer.fill")
                     .foregroundColor(.orange)
                     .font(.title)
-                Text("Beta Development In Progress")
+                Text("Beta Development Detected")
                     .font(.title2)
                     .fontWeight(.bold)
             }
             
-            Text("The developer is actively working on new features")
+            Text("\(betaInfo.commitCount) file\(betaInfo.commitCount > 1 ? "s have" : " has") changed since your last check")
                 .foregroundColor(.secondary)
         }
         .padding()
@@ -194,64 +197,33 @@ struct BetaUpdateDetailView: View {
         .cornerRadius(12)
     }
     
-    private var commitSection: some View {
+    private func changedFilesSection(files: [String]) -> some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("Latest Commit")
+            Text("Changed Files:")
                 .font(.headline)
             
-            Text(betaInfo.latestCommit.commit.message)
-                .font(.body)
-                .padding()
-                .background(Color(.secondarySystemGroupedBackground))
-                .cornerRadius(8)
-            
-            HStack {
-                Image(systemName: "person.circle.fill")
-                Text(betaInfo.latestCommit.commit.author.name)
-                Spacer()
-                Text(formatDate(betaInfo.latestCommit.commit.author.date))
-                    .font(.caption)
-                    .foregroundColor(.secondary)
-            }
-            .font(.subheadline)
-            
-            Link(destination: URL(string: betaInfo.latestCommit.html_url)!) {
-                Label("View on GitHub", systemImage: "link")
-                    .font(.subheadline)
-            }
-        }
-        .padding()
-        .background(Color(.secondarySystemGroupedBackground))
-        .cornerRadius(12)
-    }
-    
-    private func prereleaseSection(prerelease: GitHubRelease) -> some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("Prerelease Available")
-                .font(.headline)
-            
-            HStack {
-                Image(systemName: "tag.fill")
-                    .foregroundColor(.purple)
-                Text(prerelease.tag_name)
-                    .font(.subheadline)
-                    .fontWeight(.semibold)
+            ForEach(files.prefix(10), id: \.self) { file in
+                HStack {
+                    Image(systemName: "doc")
+                        .font(.caption)
+                        .foregroundColor(.blue)
+                    Text(file)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                    Spacer()
+                }
+                .padding(.vertical, 4)
             }
             
-            if let body = prerelease.body {
-                Text(body)
+            if files.count > 10 {
+                Text("...and \(files.count - 10) more")
                     .font(.caption)
                     .foregroundColor(.secondary)
                     .padding(.top, 4)
             }
-            
-            Link(destination: URL(string: prerelease.html_url)!) {
-                Label("View Prerelease", systemImage: "link")
-                    .font(.subheadline)
-            }
         }
         .padding()
-        .background(Color.purple.opacity(0.1))
+        .background(Color(.secondarySystemGroupedBackground))
         .cornerRadius(12)
     }
     
@@ -268,11 +240,27 @@ struct BetaUpdateDetailView: View {
             }
             
             Button {
+                UpdateChecker.shared.downloadAndCompareRepository { progress, status in
+                    // Progress handled by update checker
+                } completion: { success, hasChanges, error in
+                    if success {
+                        // Refresh
+                    }
+                }
+            } label: {
+                Label("Refresh File Cache", systemImage: "arrow.clockwise")
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(Color.green.opacity(0.1))
+                    .cornerRadius(12)
+            }
+            
+            Button {
                 if let url = URL(string: "https://github.com/nikos-projects/playbox") {
                     UIApplication.shared.open(url)
                 }
             } label: {
-                Label("View Repository", systemImage: "folder")
+                Label("View Repository on GitHub", systemImage: "link")
                     .frame(maxWidth: .infinity)
                     .padding()
                     .background(Color(.secondarySystemGroupedBackground))
@@ -280,16 +268,5 @@ struct BetaUpdateDetailView: View {
             }
         }
         .buttonStyle(.plain)
-    }
-    
-    private func formatDate(_ dateString: String) -> String {
-        let formatter = ISO8601DateFormatter()
-        if let date = formatter.date(from: dateString) {
-            let displayFormatter = DateFormatter()
-            displayFormatter.dateStyle = .medium
-            displayFormatter.timeStyle = .short
-            return displayFormatter.string(from: date)
-        }
-        return dateString
     }
 }
