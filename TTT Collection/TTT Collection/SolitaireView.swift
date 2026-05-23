@@ -29,7 +29,7 @@ private struct Card: Identifiable, Equatable {
     var isRed: Bool { suit.isRed }
 }
 
-// MARK: - Selection / Drag source
+// MARK: - Selection / Tap source
 
 private enum CardSource: Equatable {
     case waste
@@ -42,22 +42,15 @@ private struct Selection: Equatable {
     var cards: [Card]
 }
 
-// MARK: - Column-frame preference key
-// Used so the drag layer can hit-test which column the finger is over.
-
-private struct ColFrame: Equatable {
-    let col: Int          // 0-6 for tableau, 10-13 for foundations
-    let frame: CGRect
-}
-
-private struct ColFramesKey: PreferenceKey {
-    static var defaultValue: [ColFrame] = []
-    static func reduce(value: inout [ColFrame], nextValue: () -> [ColFrame]) {
-        value.append(contentsOf: nextValue())
-    }
-}
-
 // MARK: - Game Logic
+
+private struct GameSnapshot {
+    let stock: [Card]
+    let waste: [Card]
+    let foundations: [[Card]]
+    let tableau: [[Card]]
+    let moves: Int
+}
 
 private class SolitaireGame: ObservableObject {
     @Published var stock: [Card] = []
@@ -67,9 +60,42 @@ private class SolitaireGame: ObservableObject {
     @Published var moves: Int = 0
     @Published var isWon: Bool = false
 
+    private var undoStack: [GameSnapshot] = []
+    var canUndo: Bool { !undoStack.isEmpty }
+
     init() { newGame() }
 
+    private func saveSnapshot() {
+        undoStack.append(GameSnapshot(
+            stock: stock, waste: waste,
+            foundations: foundations, tableau: tableau, moves: moves
+        ))
+    }
+
+    func undo() {
+        guard let snap = undoStack.popLast() else { return }
+        withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
+            stock = snap.stock
+            waste = snap.waste
+            foundations = snap.foundations
+            tableau = snap.tableau
+            moves = snap.moves
+            isWon = false
+        }
+    }
+
     func newGame() {
+        var attempts = 0
+        repeat {
+            deal()
+            attempts += 1
+        } while !isSolvable() && attempts < 100
+        moves = 0
+        isWon = false
+        undoStack = []
+    }
+
+    private func deal() {
         var deck = Suit.allCases.flatMap { suit in
             Rank.allCases.map { Card(suit: suit, rank: $0) }
         }.shuffled()
@@ -82,11 +108,135 @@ private class SolitaireGame: ObservableObject {
         stock = deck.map { var c = $0; c.isFaceUp = false; return c }
         waste = []
         foundations = Array(repeating: [], count: 4)
-        moves = 0
-        isWon = false
+    }
+
+    /// Greedy heuristic solver — simulates autoplay and checks if the game
+    /// can be completed. Not perfect but catches the vast majority of unwinnable deals.
+    private func isSolvable() -> Bool {
+        // Work on copies so we don't mutate real state
+        var simStock = stock
+        var simWaste = waste
+        var simFoundations = foundations
+        var simTableau = tableau
+
+        func canPlaceOnFoundation(_ card: Card, idx: Int) -> Bool {
+            let pile = simFoundations[idx]
+            if pile.isEmpty { return card.rank == .ace }
+            guard let top = pile.last else { return false }
+            return top.suit == card.suit && top.rank.rawValue + 1 == card.rank.rawValue
+        }
+        func foundationIdx(for card: Card) -> Int {
+            Suit.allCases.firstIndex(of: card.suit)!
+        }
+        func canPlaceOnTableau(_ card: Card, col: Int) -> Bool {
+            let pile = simTableau[col]
+            if pile.isEmpty { return card.rank == .king }
+            guard let top = pile.last, top.isFaceUp else { return false }
+            return top.isRed != card.isRed && top.rank.rawValue - 1 == card.rank.rawValue
+        }
+        func flipTops() {
+            for col in 0..<7 {
+                if let last = simTableau[col].indices.last, !simTableau[col][last].isFaceUp {
+                    simTableau[col][last].isFaceUp = true
+                }
+            }
+        }
+
+        var stockDrawsSinceProgress = 0
+        let maxIter = 500
+
+        for _ in 0..<maxIter {
+            var madeMove = false
+
+            // Move aces and safe cards to foundation
+            // "Safe" = won't block the other color's lower card from building
+            func tryMoveToFoundation(_ card: Card) -> Bool {
+                let fi = foundationIdx(for: card)
+                guard canPlaceOnFoundation(card, idx: fi) else { return false }
+                // Safety check: only auto-move if both same-rank opposite colors are already on foundation
+                // (avoids stranding needed cards). For simplicity, always move aces/2s safely.
+                if card.rank.rawValue <= 2 { return true }
+                let minFoundation = simFoundations.map { $0.count }.min() ?? 0
+                return card.rank.rawValue <= minFoundation + 2
+            }
+
+            // Waste to foundation
+            if let top = simWaste.last, tryMoveToFoundation(top) {
+                let fi = foundationIdx(for: top)
+                simFoundations[fi].append(simWaste.removeLast())
+                madeMove = true
+            }
+
+            // Tableau to foundation
+            for col in 0..<7 {
+                if let top = simTableau[col].last, top.isFaceUp, tryMoveToFoundation(top) {
+                    let fi = foundationIdx(for: top)
+                    simFoundations[fi].append(simTableau[col].removeLast())
+                    flipTops()
+                    madeMove = true
+                }
+            }
+
+            // Tableau to tableau — prefer moves that uncover face-down cards
+            outer: for col in 0..<7 {
+                guard let fromIdx = simTableau[col].indices.first(where: { simTableau[col][$0].isFaceUp }) else { continue }
+                let card = simTableau[col][fromIdx]
+                let hasHidden = simTableau[col].prefix(fromIdx).contains(where: { !$0.isFaceUp })
+                for toCol in 0..<7 where toCol != col {
+                    if canPlaceOnTableau(card, col: toCol) {
+                        // Only move if it uncovers hidden cards or places on non-empty column
+                        if hasHidden || !simTableau[toCol].isEmpty {
+                            let run = Array(simTableau[col][fromIdx...])
+                            simTableau[col].removeSubrange(fromIdx...)
+                            simTableau[toCol].append(contentsOf: run)
+                            flipTops()
+                            madeMove = true
+                            break outer
+                        }
+                    }
+                }
+            }
+
+            // Waste to tableau
+            if let top = simWaste.last {
+                for col in 0..<7 {
+                    if canPlaceOnTableau(top, col: col) {
+                        simTableau[col].append(simWaste.removeLast())
+                        madeMove = true
+                        break
+                    }
+                }
+            }
+
+            if madeMove {
+                stockDrawsSinceProgress = 0
+            } else {
+                // Draw from stock
+                let totalStock = simStock.count + simWaste.count
+                if stockDrawsSinceProgress >= totalStock { break }
+                if simStock.isEmpty {
+                    simStock = simWaste.reversed().map { var c = $0; c.isFaceUp = false; return c }
+                    simWaste = []
+                }
+                if !simStock.isEmpty {
+                    var card = simStock.removeLast()
+                    card.isFaceUp = true
+                    simWaste.append(card)
+                    stockDrawsSinceProgress += 1
+                }
+            }
+
+            // Check win
+            if simFoundations.allSatisfy({ $0.count == 13 }) { return true }
+        }
+
+        // If we moved most cards to foundations, consider it good enough
+        let foundationCount = simFoundations.flatMap { $0 }.count
+        return foundationCount >= 40
     }
 
     func drawFromStock() {
+        saveSnapshot()
         withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
             if stock.isEmpty {
                 stock = waste.reversed().map { var c = $0; c.isFaceUp = false; return c }
@@ -130,6 +280,7 @@ private class SolitaireGame: ObservableObject {
         guard let card = waste.last else { return false }
         let fi = foundationIdx(for: card.suit)
         guard canPlaceOnFoundation(card, idx: fi) else { return false }
+        saveSnapshot()
         withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
             foundations[fi].append(waste.removeLast()); moves += 1; checkWin()
         }
@@ -138,6 +289,7 @@ private class SolitaireGame: ObservableObject {
 
     @discardableResult func wasteToTableau(col: Int) -> Bool {
         guard let card = waste.last, canPlaceOnTableau(card, col: col) else { return false }
+        saveSnapshot()
         withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
             tableau[col].append(waste.removeLast()); moves += 1
         }
@@ -148,6 +300,7 @@ private class SolitaireGame: ObservableObject {
         guard let card = tableau[col].last, card.isFaceUp else { return false }
         let fi = foundationIdx(for: card.suit)
         guard canPlaceOnFoundation(card, idx: fi) else { return false }
+        saveSnapshot()
         withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
             foundations[fi].append(tableau[col].removeLast())
             flipTopCard(col: col); moves += 1; checkWin()
@@ -159,6 +312,7 @@ private class SolitaireGame: ObservableObject {
         guard fromCol != toCol, fromIdx < tableau[fromCol].count else { return false }
         let card = tableau[fromCol][fromIdx]
         guard card.isFaceUp, canPlaceOnTableau(card, col: toCol) else { return false }
+        saveSnapshot()
         withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
             let run = Array(tableau[fromCol][fromIdx...])
             tableau[fromCol].removeSubrange(fromIdx...)
@@ -170,55 +324,54 @@ private class SolitaireGame: ObservableObject {
 
     @discardableResult func foundationToTableau(fi: Int, toCol: Int) -> Bool {
         guard let card = foundations[fi].last, canPlaceOnTableau(card, col: toCol) else { return false }
+        saveSnapshot()
         withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
             tableau[toCol].append(foundations[fi].removeLast()); moves += 1
         }
         return true
     }
 
-    @discardableResult func wasteToFoundationSlot(_ fi: Int) -> Bool {
-        guard let card = waste.last,
-              canPlaceOnFoundation(card, idx: fi) else { return false }
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
-            foundations[fi].append(waste.removeLast()); moves += 1; checkWin()
-        }
-        return true
-    }
-
-    @discardableResult func tableauToFoundationSlot(col: Int, fi: Int) -> Bool {
-        guard let card = tableau[col].last, card.isFaceUp,
-              canPlaceOnFoundation(card, idx: fi) else { return false }
-        withAnimation(.spring(response: 0.25, dampingFraction: 0.75)) {
-            foundations[fi].append(tableau[col].removeLast())
-            flipTopCard(col: col); moves += 1; checkWin()
-        }
-        return true
-    }
-
     private func checkWin() { isWon = foundations.allSatisfy { $0.count == 13 } }
+
+    // MARK: - Auto Move
+
+    /// Try to move a card from waste to the best available spot.
+    /// Priority: foundation first, then first valid tableau column.
+    @discardableResult func autoMoveWaste() -> Bool {
+        if wasteToFoundation() { return true }
+        for col in 0..<7 {
+            if wasteToTableau(col: col) { return true }
+        }
+        return false
+    }
+
+    /// Try to auto-move the top face-up card of a tableau column.
+    @discardableResult func autoMoveTableau(col: Int, fromIdx: Int) -> Bool {
+        let isTopCard = fromIdx == tableau[col].count - 1
+        // Only try foundation if tapping the single top card
+        if isTopCard && tableauToFoundation(col: col) { return true }
+        for toCol in 0..<7 where toCol != col {
+            if tableauToTableau(fromCol: col, fromIdx: fromIdx, toCol: toCol) { return true }
+        }
+        return false
+    }
 }
 
 // MARK: - View
 
 struct SolitaireView: View {
     @StateObject private var game = SolitaireGame()
+    @AppStorage("solitaireTapMode") private var tapMode: String = "tap"
 
-    // Tap selection
+    // Tap selection (used in "tap" mode only)
     @State private var selection: Selection? = nil
-
-    // Drag state
-    @State private var dragSelection: Selection? = nil   // cards being dragged
-    @State private var dragLocation: CGPoint = .zero     // current finger position (global)
-    @State private var dragStarted = false
-    @State private var colFrames: [ColFrame] = []        // column frames in global space
-
     @State private var winCelebration = false
+    @State private var autoPlaying = false
+    @State private var autoPlayTimer: Timer? = nil
+    @State private var stockDrawsSinceMove = 0
 
     private let accent      = Color.indigo
     private let cardCorner: CGFloat = 7
-
-    // Derived: are we mid-drag?
-    private var isDragging: Bool { dragSelection != nil && dragStarted }
 
     var body: some View {
         NavigationView {
@@ -244,30 +397,9 @@ struct SolitaireView: View {
                                 .padding(.bottom, selection != nil ? 56 : 20)
                         }
                     }
-                    // Collect column frames reported by children (in global coords)
-                    .onPreferenceChange(ColFramesKey.self) { colFrames = $0 }
 
-                    // ── Drag ghost ──────────────────────────────────────────
-                    if isDragging, let ds = dragSelection {
-                        let ghostCards = ds.cards
-                        let fuOff: CGFloat = cardH * 0.30
-                        ZStack(alignment: .top) {
-                            ForEach(Array(ghostCards.enumerated()), id: \.element.id) { i, card in
-                                cardFace(card, w: colW, h: cardH, isSelected: false)
-                                    .offset(y: CGFloat(i) * fuOff)
-                                    .opacity(0.88)
-                            }
-                        }
-                        // Centre ghost on finger, offset upward so finger is near top of card
-                        .position(x: dragLocation.x,
-                                  y: dragLocation.y - cardH * 0.1)
-                        .allowsHitTesting(false)
-                        .shadow(color: .black.opacity(0.25), radius: 8, x: 0, y: 4)
-                        .zIndex(999)
-                    }
-
-                    // ── Selection banner ────────────────────────────────────
-                    if selection != nil && !isDragging {
+                    // ── Selection banner (tap mode only) ───────────────────
+                    if selection != nil && tapMode == "tap" {
                         VStack {
                             Spacer()
                             selectionBanner.padding(.bottom, 12)
@@ -287,7 +419,20 @@ struct SolitaireView: View {
                             .font(.system(size: 13, weight: .medium))
                             .foregroundColor(.secondary)
                         Button {
-                            withAnimation { game.newGame(); selection = nil }
+                            withAnimation { game.undo(); selection = nil }
+                        } label: {
+                            Image(systemName: "arrow.uturn.backward")
+                                .foregroundColor(game.canUndo ? accent : .secondary.opacity(0.4))
+                        }
+                        .disabled(!game.canUndo)
+                        Button {
+                            toggleAutoPlay()
+                        } label: {
+                            Image(systemName: autoPlaying ? "pause.fill" : "play.fill")
+                                .foregroundColor(autoPlaying ? .orange : accent)
+                        }
+                        Button {
+                            withAnimation { game.newGame(); selection = nil; stopAutoPlay() }
                         } label: {
                             Image(systemName: "arrow.counterclockwise").foregroundColor(accent)
                         }
@@ -296,6 +441,80 @@ struct SolitaireView: View {
             }
         }
         .navigationViewStyle(.stack)
+        .onChange(of: game.isWon) { won in
+            if won { stopAutoPlay() }
+        }
+    }
+
+    // MARK: - Auto Play
+
+    private func toggleAutoPlay() {
+        if autoPlaying { stopAutoPlay() } else { startAutoPlay() }
+    }
+
+    private func startAutoPlay() {
+        autoPlaying = true
+        selection = nil
+        stockDrawsSinceMove = 0
+        autoPlayTimer = Timer.scheduledTimer(withTimeInterval: 0.5, repeats: true) { _ in
+            let result = performBestAutoMove()
+            if !result {
+                stopAutoPlay()
+            }
+        }
+    }
+
+    private func stopAutoPlay() {
+        autoPlaying = false
+        autoPlayTimer?.invalidate()
+        autoPlayTimer = nil
+    }
+
+    /// Try every possible move in priority order. Returns true if a move was made.
+    private func performBestAutoMove() -> Bool {
+        // Reset stock draw counter — a real move was attempted
+        stockDrawsSinceMove = 0
+
+        // 1. Waste to foundation
+        if game.autoMoveWaste() { return true }
+
+        // 2. Tableau to foundation
+        for col in 0..<7 {
+            if game.tableauToFoundation(col: col) { return true }
+        }
+
+        // 3. Tableau to tableau — skip king-to-empty moves that can't help
+        let emptyColumns = (0..<7).filter { game.tableau[$0].isEmpty }
+        for col in 0..<7 {
+            let cards = game.tableau[col]
+            guard let fromIdx = cards.indices.first(where: { cards[$0].isFaceUp }) else { continue }
+            let movingCard = cards[fromIdx]
+            for toCol in 0..<7 where toCol != col {
+                // Skip: moving a king to an empty column when the source column
+                // is ALSO all face-up with no hidden cards to uncover — pointless shuffle.
+                if movingCard.rank == .king && game.tableau[toCol].isEmpty {
+                    let hasHiddenCards = cards.prefix(fromIdx).contains(where: { !$0.isFaceUp })
+                    // Only move king to empty if it uncovers hidden cards, or there's only 1 empty col
+                    if !hasHiddenCards && emptyColumns.count > 1 { continue }
+                    if !hasHiddenCards && emptyColumns.count == 1 && fromIdx == 0 { continue }
+                }
+                if game.tableauToTableau(fromCol: col, fromIdx: fromIdx, toCol: toCol) { return true }
+            }
+        }
+
+        // 4. Draw from stock — stop if we've cycled through the whole stock without a real move
+        let stockSize = game.stock.count + game.waste.count
+        if stockSize > 0 {
+            if stockDrawsSinceMove >= stockSize {
+                // Full cycle with no progress — softlocked
+                return false
+            }
+            game.drawFromStock()
+            stockDrawsSinceMove += 1
+            return true
+        }
+
+        return false
     }
 
     // MARK: - Selection Banner
@@ -354,7 +573,7 @@ struct SolitaireView: View {
 
             Spacer()
 
-            // Foundations (ids 10-13)
+            // Foundations
             ForEach(0..<4, id: \.self) { fi in
                 foundationSlot(fi: fi, colW: colW, cardH: cardH)
             }
@@ -369,16 +588,9 @@ struct SolitaireView: View {
                 .fill(Color(.secondarySystemGroupedBackground))
 
             if let top = game.waste.last {
-                let isSel = selection?.source == .waste && !isDragging
+                let isSel = selection?.source == .waste
                 cardFace(top, w: colW, h: cardH, isSelected: isSel)
-                    // Make card invisible while being dragged
-                    .opacity(dragSelection?.source == .waste && isDragging ? 0.25 : 1.0)
                     .onTapGesture { handleWasteTap(card: top) }
-                    .gesture(cardDragGesture(
-                        source: .waste,
-                        cards: [top],
-                        colW: colW, cardH: cardH
-                    ))
             } else {
                 Text("—").foregroundColor(Color(.tertiaryLabel)).font(.system(size: 16))
             }
@@ -387,6 +599,11 @@ struct SolitaireView: View {
     }
 
     private func handleWasteTap(card: Card) {
+        if tapMode == "auto" {
+            game.autoMoveWaste()
+            return
+        }
+        // tap-to-select mode
         if selection != nil { selection = nil; return }
         if !game.wasteToFoundation() {
             withAnimation(.spring(response: 0.2, dampingFraction: 0.8)) {
@@ -418,22 +635,18 @@ struct SolitaireView: View {
             }
         }
         .frame(width: colW, height: cardH)
-        // Report frame for drag hit-testing (id = 10 + fi)
-        .background(GeometryReader { g in
-            Color.clear.preference(
-                key: ColFramesKey.self,
-                value: [ColFrame(col: 10 + fi, frame: g.frame(in: .global))]
-            )
-        })
         .onTapGesture { handleFoundationTap(fi: fi) }
     }
 
     private func handleFoundationTap(fi: Int) {
+        // Auto mode: foundation cards aren't typically moved out, just ignore
+        if tapMode == "auto" { return }
+        // tap-to-select mode
         if let sel = selection {
             switch sel.source {
-            case .waste:            game.wasteToFoundation()
+            case .waste:             game.wasteToFoundation()
             case .tableau(let c, _): game.tableauToFoundation(col: c)
-            case .foundation:       break
+            case .foundation:        break
             }
             selection = nil
         } else if let top = game.foundations[fi].last {
@@ -454,72 +667,64 @@ struct SolitaireView: View {
     }
 
     private func tableauColumn(col: Int, colW: CGFloat, cardH: CGFloat) -> some View {
-        let cards  = game.tableau[col]
+        let cards = game.tableau[col]
         let fdOff: CGFloat = cardH * 0.13
-        let fuOff: CGFloat = cardH * 0.30
+        let fuOff: CGFloat = cardH * 0.25
 
-        // Total height so all cards are visible
         var totalH: CGFloat = cardH
-        for i in 0..<max(0, cards.count - 1) {
-            totalH += cards[i].isFaceUp ? fuOff : fdOff
+        for i in 0..<cards.count {
+            if i < cards.count - 1 {
+                totalH += cards[i].isFaceUp ? fuOff : fdOff
+            }
         }
 
-        // Index of the first dragged card in this column (if any)
-        let dragFromIdx: Int? = {
-            if case .tableau(let c, let idx) = dragSelection?.source, c == col { return idx }
-            return nil
-        }()
-
         return ZStack(alignment: .top) {
-            // Empty-column drop zone
             RoundedRectangle(cornerRadius: cardCorner)
                 .strokeBorder(Color(.separator).opacity(0.35), lineWidth: 1)
                 .frame(width: colW, height: cardH)
                 .contentShape(Rectangle())
                 .onTapGesture { tryDropOnTableau(col: col) }
+            Color.clear.frame(width: colW, height: totalH)
 
             ForEach(Array(cards.enumerated()), id: \.element.id) { idx, card in
                 let yOff: CGFloat = {
                     var y: CGFloat = 0
-                    for i in 0..<idx { y += cards[i].isFaceUp ? fuOff : fdOff }
+                    for i in 0..<idx {
+                        y += cards[i].isFaceUp ? fuOff : fdOff
+                    }
                     return y
                 }()
+
                 let isSelHighlight: Bool = {
                     if case .tableau(let c, let si) = selection?.source {
-                        return c == col && idx >= si && !isDragging
+                        return c == col && idx >= si
                     }
                     return false
                 }()
-                // Ghost-out cards that are being dragged from this column
-                let isDraggedAway = dragFromIdx.map { idx >= $0 } ?? false
+
+                let isTopCard = idx == cards.count - 1
 
                 Group {
                     if card.isFaceUp {
                         cardFace(card, w: colW, h: cardH, isSelected: isSelHighlight)
-                            .opacity(isDraggedAway && isDragging ? 0.25 : 1.0)
-                            .onTapGesture { handleTableauCardTap(col: col, idx: idx) }
-                            .gesture(cardDragGesture(
-                                source: .tableau(col: col, fromIdx: idx),
-                                cards: Array(cards[idx...]),
-                                colW: colW, cardH: cardH
-                            ))
+                            .contentShape(Rectangle())
+                            .onTapGesture {
+                                if tapMode == "auto" || isTopCard {
+                                    handleTableauCardTap(col: col, idx: idx)
+                                }
+                            }
                     } else {
                         cardBack(w: colW, h: cardH)
+                            .contentShape(Rectangle())
                     }
                 }
                 .offset(y: yOff)
+                .zIndex(Double(idx))
             }
         }
         .frame(width: colW, height: max(totalH, cardH))
         .contentShape(Rectangle())
         .onTapGesture { tryDropOnTableau(col: col) }
-        // Report this column's frame for drag hit-testing
-        .background(GeometryReader { g in
-            Color.clear.preference(
-                key: ColFramesKey.self,
-                value: [ColFrame(col: col, frame: g.frame(in: .global))]
-            )
-        })
     }
 
     // MARK: Tableau tap handling
@@ -527,6 +732,13 @@ struct SolitaireView: View {
     private func handleTableauCardTap(col: Int, idx: Int) {
         let cards = game.tableau[col]
         guard idx < cards.count, cards[idx].isFaceUp else { return }
+
+        if tapMode == "auto" {
+            game.autoMoveTableau(col: col, fromIdx: idx)
+            return
+        }
+
+        // tap-to-select mode
         if selection != nil {
             let moved = tryDropOnTableau(col: col)
             if moved { return }
@@ -543,71 +755,12 @@ struct SolitaireView: View {
         guard let sel = selection else { return false }
         var moved = false
         switch sel.source {
-        case .waste:                        moved = game.wasteToTableau(col: col)
-        case .tableau(let fc, let fi):      moved = game.tableauToTableau(fromCol: fc, fromIdx: fi, toCol: col)
-        case .foundation(let fi):           moved = game.foundationToTableau(fi: fi, toCol: col)
+        case .waste:                    moved = game.wasteToTableau(col: col)
+        case .tableau(let fc, let fi):  moved = game.tableauToTableau(fromCol: fc, fromIdx: fi, toCol: col)
+        case .foundation(let fi):       moved = game.foundationToTableau(fi: fi, toCol: col)
         }
         if moved { withAnimation { selection = nil } }
         return moved
-    }
-
-    // MARK: - Drag Gesture
-
-    /// Builds a DragGesture for any draggable card.
-    private func cardDragGesture(
-        source: CardSource,
-        cards: [Card],
-        colW: CGFloat,
-        cardH: CGFloat
-    ) -> some Gesture {
-        DragGesture(minimumDistance: 6, coordinateSpace: .global)
-            .onChanged { value in
-                if !dragStarted {
-                    dragStarted = true
-                    dragSelection = Selection(source: source, cards: cards)
-                    // Clear tap selection when drag starts
-                    selection = nil
-                }
-                dragLocation = value.location
-            }
-            .onEnded { value in
-                defer {
-                    dragStarted = false
-                    dragSelection = nil
-                }
-                guard let ds = dragSelection else { return }
-                let dropPoint = value.location
-
-                // Hit-test: find which registered frame the finger landed in
-                if let hit = colFrames.first(where: { $0.frame.contains(dropPoint) }) {
-                    let moved: Bool
-                    if hit.col >= 10 {
-                        // Foundation slot (col id = 10 + fi)
-                        let fi = hit.col - 10
-                        switch ds.source {
-                        case .waste:
-                            moved = game.wasteToFoundationSlot(fi)
-                        case .tableau(let c, _):
-                            moved = game.tableauToFoundationSlot(col: c, fi: fi)
-                        case .foundation:
-                            moved = false
-                        }
-                    } else {
-                        // Tableau column
-                        let toCol = hit.col
-                        switch ds.source {
-                        case .waste:
-                            moved = game.wasteToTableau(col: toCol)
-                        case .tableau(let fc, let fi):
-                            moved = game.tableauToTableau(fromCol: fc, fromIdx: fi, toCol: toCol)
-                        case .foundation(let fi):
-                            moved = game.foundationToTableau(fi: fi, toCol: toCol)
-                        }
-                    }
-                    _ = moved
-                }
-                // If no valid drop, the ghost just disappears — cards stay put
-            }
     }
 
     // MARK: - Card Views

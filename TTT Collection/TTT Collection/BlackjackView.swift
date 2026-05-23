@@ -120,119 +120,35 @@ class BlackjackViewModel: ObservableObject {
         card.isFaceDown = faceDown
         return card
     }
+    private let chipsKey = "blackjack_chips"
 
-    // MARK: - Betting
+    init() {
+        loadChips()
+        buildDeck()
+    }
 
+    private func loadChips() {
+        chips = UserDefaults.standard.integer(forKey: chipsKey)
+        if chips == 0 { chips = 1000 }
+    }
+
+    private func saveChips() {
+        UserDefaults.standard.set(chips, forKey: chipsKey)
+    }
+
+    // Update these functions:
     func placeBet(_ amount: Int) {
         guard chips >= amount else { return }
         bet += amount
         chips -= amount
+        saveChips()
     }
 
     func clearBet() {
         chips += bet
         bet = 0
+        saveChips()
     }
-
-    func deal() {
-        guard bet > 0 else { return }
-        if deck.count < 15 { buildDeck() }
-        playerHand = [draw(), draw()]
-        dealerHand = [draw(), draw(faceDown: true)]
-        outcome = nil
-        phase = .playerTurn
-        message = ""
-
-        // Check for natural blackjack
-        if handValue(playerHand) == 21 {
-            revealAndFinish()
-        }
-    }
-
-    // MARK: - Player Actions
-
-    func hit() {
-        guard phase == .playerTurn else { return }
-        playerHand.append(draw())
-        if handValue(playerHand) > 21 {
-            outcome = .dealerWin
-            revealDealer()
-            phase = .result
-            message = "Bust! Over 21."
-        } else if handValue(playerHand) == 21 {
-            // Auto-stand on 21
-            dealerPlay()
-        }
-    }
-
-    func stand() {
-        guard phase == .playerTurn else { return }
-        dealerPlay()
-    }
-
-    func doubleDown() {
-        guard phase == .playerTurn, playerHand.count == 2, chips >= bet else { return }
-        chips -= bet
-        bet *= 2
-        playerHand.append(draw())
-        if handValue(playerHand) > 21 {
-            outcome = .dealerWin
-            revealDealer()
-            phase = .result
-            message = "Bust!"
-        } else {
-            dealerPlay()
-        }
-    }
-
-    // MARK: - Dealer AI
-
-    func revealDealer() {
-        if let idx = dealerHand.indices.first(where: { dealerHand[$0].isFaceDown }) {
-            dealerHand[idx].isFaceDown = false
-        }
-    }
-
-    func revealAndFinish() {
-        revealDealer()
-        let pv = handValue(playerHand)
-        let dv = handValue(dealerHand)
-        if pv == 21 && playerHand.count == 2 {
-            settleBlackjack()
-        } else {
-            settle(playerValue: pv, dealerValue: dv)
-        }
-        phase = .result
-    }
-
-    func dealerPlay() {
-        phase = .dealerTurn
-        dealerThinking = true
-        revealDealer()
-
-        // Kick off dealer drawing chain with delays
-        drawDealerStep()
-    }
-
-    private func drawDealerStep() {
-        let dv = handValue(dealerHand)
-        // Dealer stands on soft 17+
-        if dv >= 17 {
-            dealerThinking = false
-            let pv = handValue(playerHand)
-            settle(playerValue: pv, dealerValue: dv)
-            phase = .result
-        } else {
-            // Dealer draws after short delay (simulate thinking)
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.7) { [weak self] in
-                guard let self else { return }
-                self.dealerHand.append(self.draw())
-                self.drawDealerStep()
-            }
-        }
-    }
-
-    // MARK: - Settlement
 
     private func settle(playerValue pv: Int, dealerValue dv: Int) {
         if pv > 21 {
@@ -243,20 +159,24 @@ class BlackjackViewModel: ObservableObject {
             chips += bet * 2
             bet = 0
             message = "Dealer busts!"
+            saveChips()
         } else if pv > dv {
             outcome = .playerWin
             chips += bet * 2
             bet = 0
             message = "Higher hand wins!"
+            saveChips()
         } else if dv > pv {
             outcome = .dealerWin
             bet = 0
             message = "Dealer has higher hand."
+            saveChips()
         } else {
             outcome = .push
             chips += bet
             bet = 0
             message = "Same value — push."
+            saveChips()
         }
     }
 
@@ -269,13 +189,88 @@ class BlackjackViewModel: ObservableObject {
             message = "Both Blackjack — push."
         } else {
             outcome = .blackjack
-            chips += Int(Double(bet) * 2.5) // 3:2 payout
+            chips += Int(Double(bet) * 2.5)
             bet = 0
             message = "Natural Blackjack!"
         }
+        saveChips()
     }
 
-    // MARK: - New Round
+    func deal() {
+        guard phase == .betting, bet > 0 else { return }
+        if deck.count < 10 { buildDeck() }
+        playerHand = [draw(), draw()]
+        dealerHand = [draw(), draw(faceDown: true)]
+        outcome = nil
+        message = ""
+        let pv = handValue(playerHand)
+        if pv == 21 {
+            dealerHand[1].isFaceDown = false
+            settleBlackjack()
+            phase = .result
+        } else {
+            phase = .playerTurn
+        }
+    }
+
+    func hit() {
+        guard phase == .playerTurn else { return }
+        playerHand.append(draw())
+        let pv = handValue(playerHand)
+        if pv > 21 {
+            dealerHand[1].isFaceDown = false
+            outcome = .dealerWin
+            message = "Bust!"
+            bet = 0
+            saveChips()
+            phase = .result
+        } else if pv == 21 {
+            stand()
+        }
+    }
+
+    func stand() {
+        guard phase == .playerTurn else { return }
+        dealerHand[1].isFaceDown = false
+        phase = .dealerTurn
+        runDealerTurn()
+    }
+
+    func doubleDown() {
+        guard phase == .playerTurn, playerHand.count == 2, chips >= bet else { return }
+        chips -= bet
+        bet *= 2
+        saveChips()
+        playerHand.append(draw())
+        let pv = handValue(playerHand)
+        if pv > 21 {
+            dealerHand[1].isFaceDown = false
+            outcome = .dealerWin
+            message = "Bust!"
+            bet = 0
+            saveChips()
+            phase = .result
+        } else {
+            stand()
+        }
+    }
+
+    private func runDealerTurn() {
+        dealerThinking = true
+        func drawNext() {
+            let dv = handValue(dealerHand)
+            if dv < 17 {
+                dealerHand.append(draw())
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) { drawNext() }
+            } else {
+                let pv = handValue(playerHand)
+                settle(playerValue: pv, dealerValue: dv)
+                dealerThinking = false
+                phase = .result
+            }
+        }
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { drawNext() }
+    }
 
     func newRound() {
         playerHand = []
@@ -284,7 +279,10 @@ class BlackjackViewModel: ObservableObject {
         outcome = nil
         message = ""
         phase = .betting
-        if chips == 0 { chips = 1000 } // refill if broke
+        if chips == 0 {
+            chips = 1000
+            saveChips()
+        }
     }
 }
 
@@ -521,7 +519,26 @@ struct BlackjackView: View {
                     .disabled(vm.chips < amount)
                     .opacity(vm.chips < amount ? 0.4 : 1)
                 }
+                
+                // ALL-IN button
+                Button {
+                    withAnimation {
+                        vm.placeBet(vm.chips)
+                    }
+                } label: {
+                    Text("ALL IN")
+                        .font(.system(size: 12, weight: .bold, design: .monospaced))
+                        .foregroundColor(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 12)
+                        .background(Color.purple)
+                        .cornerRadius(12)
+                        .shadow(color: Color.purple.opacity(0.4), radius: 4, y: 2)
+                }
+                .disabled(vm.chips == 0)
+                .opacity(vm.chips == 0 ? 0.4 : 1)
             }
+            
             HStack(spacing: 12) {
                 Button {
                     withAnimation { vm.clearBet() }

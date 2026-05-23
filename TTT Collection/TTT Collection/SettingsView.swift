@@ -10,11 +10,38 @@ import SwiftUI
 struct SettingsView: View {
     @ObservedObject private var updateChecker = UpdateChecker.shared
     @AppStorage("betaOptIn") private var betaOptIn = false
+    @AppStorage("solitaireTapMode") private var solitaireTapMode: String = "tap"
     @State private var showingBetaOptIn = false
     
     var body: some View {
         NavigationView {
             List {
+                Section {
+                    VStack(alignment: .leading, spacing: 10) {
+                        Text("Control Style")
+                            .font(.system(size: 13, weight: .semibold))
+                            .foregroundColor(.secondary)
+
+                        Picker("Control Style", selection: $solitaireTapMode) {
+                            Label("Tap to Select", systemImage: "hand.tap")
+                                .tag("tap")
+                            Label("Auto Move", systemImage: "wand.and.sparkles")
+                                .tag("auto")
+                        }
+                        .pickerStyle(.segmented)
+
+                        Text(solitaireTapMode == "auto"
+                             ? "Tap any card to automatically move it to the best available position."
+                             : "Tap a card to select it, then tap a destination to move it.")
+                            .font(.system(size: 12))
+                            .foregroundColor(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                    .padding(.vertical, 4)
+                } header: {
+                    Label("Solitaire", systemImage: "suit.spade.fill")
+                }
+
                 Section("Updates") {
                     HStack {
                         Text("Current Version")
@@ -240,11 +267,11 @@ struct BetaUpdateDetailView: View {
             }
             
             Button {
-                UpdateChecker.shared.downloadAndCompareRepository { progress, status in
+                UpdateChecker.shared.fetchAndCompareRepository { progress, status in
                     // Progress handled by update checker
-                } completion: { success, hasChanges, error in
+                } completion: { success, hasChanges, files, error in
                     if success {
-                        // Refresh
+                        // Refresh - could trigger a reload of the view
                     }
                 }
             } label: {

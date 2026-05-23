@@ -298,22 +298,41 @@ private class ChessGame: ObservableObject {
     }
 
     func getAIMove() -> ((r: Int, c: Int), (r: Int, c: Int))? {
-        var allMoves: [((r: Int, c: Int), (r: Int, c: Int))] = []
+        var allMoves: [((r: Int, c: Int), (r: Int, c: Int), value: Int)] = []
+        
         for r in 0..<8 {
             for c in 0..<8 {
                 guard let piece = board[r][c], piece.color == currentPlayer else { continue }
                 for tr in 0..<8 {
                     for tc in 0..<8 {
                         if isValidMove(from: (r, c), to: (tr, tc)) {
-                            allMoves.append(((r, c), (tr, tc)))
+                            // Evaluate move value
+                            var value = 0
+                            // Capture piece value
+                            if let target = board[tr][tc] {
+                                let pieceValues: [ChessPieceType: Int] = [
+                                    .pawn: 10, .knight: 30, .bishop: 30,
+                                    .rook: 50, .queen: 90, .king: 900
+                                ]
+                                value += pieceValues[target.type] ?? 0
+                            }
+                            // Prefer center control
+                            let centerDist = abs(Double(tr) - 3.5) + abs(Double(tc) - 3.5)
+                            value += Int((7 - centerDist) * 2)
+                            // Prefer moving pieces that haven't moved
+                            value += 1
+                            
+                            allMoves.append(((r, c), (tr, tc), value))
                         }
                     }
                 }
             }
         }
-        // Prioritise captures
-        let captures = allMoves.filter { board[$0.1.r][$0.1.c] != nil }
-        return (captures.isEmpty ? allMoves : captures).randomElement()
+        
+        // Sort by value and pick best (with some randomness)
+        allMoves.sort { $0.value > $1.value }
+        let topMoves = Array(allMoves.prefix(max(3, allMoves.count / 3)))
+        return topMoves.randomElement().map { ($0.0, $0.1) }
     }
 }
 

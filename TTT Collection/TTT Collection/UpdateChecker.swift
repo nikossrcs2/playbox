@@ -9,7 +9,7 @@ import Foundation
 import SwiftUI
 internal import Combine
 
-// MARK: - Version Models
+// MARK: - GitHub API Models
 
 struct GitHubRelease: Codable {
     let tag_name: String
@@ -50,19 +50,6 @@ struct GitHubTreeItem: Codable {
     let sha: String
     let size: Int?
     let url: String
-}
-
-struct GitHubContent: Codable {
-    let name: String
-    let path: String
-    let sha: String
-    let size: Int
-    let url: String
-    let html_url: String
-    let download_url: String?
-    let type: String
-    let content: String?
-    let encoding: String?
 }
 
 // MARK: - Version Parser
@@ -133,11 +120,11 @@ struct AppVersion: Comparable {
 
 struct FileHashCache: Codable {
     let commitSha: String
-    let files: [String: String]  // path -> hash
+    let files: [String: String]
     let lastUpdated: Date
 }
 
-// MARK: - Update Checker (iOS-compatible)
+// MARK: - Update Checker
 
 class UpdateChecker: ObservableObject {
     static let shared = UpdateChecker()
@@ -152,17 +139,16 @@ class UpdateChecker: ObservableObject {
     @Published var isDownloading = false
     @Published var showCloneConfirmation = false
     
-    let repoOwner = "nikos-projects"
-    let repoName = "playbox"
-    let userDefaultsKey = "lastUpdateCheck"
-    let betaOptInKey = "betaOptIn"
-    let lastBetaCheckKey = "lastBetaCheck"
-    let fileHashCacheKey = "fileHashCache"
+    private let repoOwner = "nikos-projects"
+    private let repoName = "playbox"
+    private let userDefaultsKey = "lastUpdateCheck"
+    private let betaOptInKey = "betaOptIn"
+    private let lastBetaCheckKey = "lastBetaCheck"
+    private let fileHashCacheKey = "fileHashCache"
     
     private var checkTimer: Timer?
-    
-    // Track which files we've downloaded for comparison
     private var downloadedFileHashes: [String: String] = [:]
+    private var lastCommitSha: String = ""
     
     private init() {
         startPeriodicChecks()
@@ -182,19 +168,16 @@ class UpdateChecker: ObservableObject {
         }
     }
     
-    // MARK: - File Storage
-    
-    private var cacheDirectory: URL {
-        let paths = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask)
-        let cacheDir = paths[0].appendingPathComponent("playbox_beta_cache")
-        try? FileManager.default.createDirectory(at: cacheDir, withIntermediateDirectories: true)
-        return cacheDir
-    }
+    // MARK: - Persistence
     
     private func loadFileHashCache() {
         if let data = UserDefaults.standard.data(forKey: fileHashCacheKey),
            let cache = try? JSONDecoder().decode(FileHashCache.self, from: data) {
             downloadedFileHashes = cache.files
+            lastCommitSha = cache.commitSha
+            print("Loaded cache with \(downloadedFileHashes.count) files from commit \(lastCommitSha.prefix(7))")
+        } else {
+            print("No existing cache found")
         }
     }
     
@@ -206,51 +189,65 @@ class UpdateChecker: ObservableObject {
         )
         if let data = try? JSONEncoder().encode(cache) {
             UserDefaults.standard.set(data, forKey: fileHashCacheKey)
+            print("Saved cache with \(downloadedFileHashes.count) files for commit \(commitSha.prefix(7))")
         }
     }
     
-    // MARK: - Download and Compare Repository Files
+    // MARK: - Fetch and Compare Repository
     
-    func downloadAndCompareRepository(progress: @escaping (Double, String) -> Void, completion: @escaping (Bool, Bool, Error?) -> Void) {
+    func fetchAndCompareRepository(progress: @escaping (Double, String) -> Void, completion: @escaping (Bool, Bool, [String]?, Error?) -> Void) {
         DispatchQueue.global(qos: .userInitiated).async { [weak self] in
             guard let self = self else { return }
             
-            progress(0.05, "Fetching repository tree...")
+            progress(0.05, "Fetching repository file tree from GitHub...")
             
             // Get the repository file tree
             let treeURL = URL(string: "https://api.github.com/repos/\(self.repoOwner)/\(self.repoName)/git/trees/main?recursive=1")!
             
-            let semaphore = DispatchSemaphore(value: 0)
-            var tree: GitHubTree?
-            var error: Error?
-            
             var request = URLRequest(url: treeURL)
             request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
             
-            URLSession.shared.dataTask(with: request) { data, _, taskError in
-                error = taskError
+            let semaphore = DispatchSemaphore(value: 0)
+            var tree: GitHubTree?
+            var networkError: Error?
+            
+            URLSession.shared.dataTask(with: request) { data, response, error in
+                networkError = error
                 if let data = data {
-                    tree = try? JSONDecoder().decode(GitHubTree.self, from: data)
+                    do {
+                        tree = try JSONDecoder().decode(GitHubTree.self, from: data)
+                        print("Successfully fetched tree with \(tree?.tree.count ?? 0) items")
+                    } catch {
+                        print("Failed to decode tree: \(error)")
+                        networkError = error
+                    }
                 }
                 semaphore.signal()
             }.resume()
             
             semaphore.wait()
             
-            guard let tree = tree, error == nil else {
+            guard let tree = tree, networkError == nil else {
                 DispatchQueue.main.async {
-                    completion(false, false, error)
+                    completion(false, false, nil, networkError)
                 }
                 return
             }
             
-            progress(0.1, "Analyzing \(tree.tree.count) files...")
+            progress(0.2, "Analyzing \(tree.tree.count) files...")
             
-            // Filter for Swift files and important project files
+            // Filter for relevant files
             let relevantFiles = tree.tree.filter { item in
                 let ext = (item.path as NSString).pathExtension
-                return ext == "swift" || ext == "xcodeproj" || ext == "xcworkspace" || item.path.contains(".pbxproj")
+                return ext == "swift" ||
+                       ext == "xcodeproj" ||
+                       ext == "xcworkspace" ||
+                       item.path.contains(".pbxproj") ||
+                       ext == "txt" ||
+                       ext == "md"
             }
+            
+            print("Found \(relevantFiles.count) relevant files")
             
             var newHashes: [String: String] = [:]
             var changedFiles: [String] = []
@@ -258,27 +255,34 @@ class UpdateChecker: ObservableObject {
             
             for file in relevantFiles {
                 totalProcessed += 1
-                progress(0.1 + (Double(totalProcessed) / Double(relevantFiles.count)) * 0.8,
-                        "Checking: \(file.path)")
+                let percent = 0.2 + (Double(totalProcessed) / Double(relevantFiles.count)) * 0.7
+                progress(percent, "Checking: \(file.path)")
                 
-                // Get file content hash (just the SHA, don't download full content)
                 newHashes[file.path] = file.sha
                 
                 // Compare with cached hash
-                if let cachedHash = self.downloadedFileHashes[file.path], cachedHash != file.sha {
+                if let cachedHash = self.downloadedFileHashes[file.path] {
+                    if cachedHash != file.sha {
+                        changedFiles.append(file.path)
+                        print("Changed: \(file.path) (\(cachedHash.prefix(7)) -> \(file.sha.prefix(7)))")
+                    }
+                } else {
+                    // New file not in cache
                     changedFiles.append(file.path)
+                    print("New file: \(file.path)")
                 }
             }
             
             // Update cache
+            let hasChanges = !changedFiles.isEmpty
             self.downloadedFileHashes = newHashes
             self.saveFileHashCache(commitSha: tree.sha)
             
-            progress(1.0, "Analysis complete")
+            progress(1.0, hasChanges ? "Found \(changedFiles.count) changes" : "No changes detected")
             
-            let hasChanges = !changedFiles.isEmpty
             DispatchQueue.main.async {
-                completion(true, hasChanges, nil)
+                completion(true, hasChanges, changedFiles, nil)
+                
                 if hasChanges {
                     self.betaUpdateAvailable = BetaUpdateInfo(
                         hasNewCommits: true,
@@ -292,37 +296,54 @@ class UpdateChecker: ObservableObject {
         }
     }
     
-    // MARK: - Simple Remote Check (No Download)
+    // MARK: - Quick Remote Check
     
-    func checkRemoteForChanges(completion: @escaping (Bool, Int, [String]?) -> Void) {
+    func checkForRemoteChanges(completion: @escaping (Bool, Int, [String]?) -> Void) {
+        print("Checking for remote changes...")
+        
         let treeURL = URL(string: "https://api.github.com/repos/\(repoOwner)/\(repoName)/git/trees/main?recursive=1")!
         
         var request = URLRequest(url: treeURL)
         request.setValue("application/vnd.github.v3+json", forHTTPHeaderField: "Accept")
         
-        URLSession.shared.dataTask(with: request) { [weak self] data, _, error in
-            guard let data = data, error == nil,
-                  let tree = try? JSONDecoder().decode(GitHubTree.self, from: data) else {
+        URLSession.shared.dataTask(with: request) { [weak self] data, response, error in
+            guard let data = data, error == nil else {
+                print("Network error: \(error?.localizedDescription ?? "unknown")")
                 completion(false, 0, nil)
                 return
             }
             
-            let relevantFiles = tree.tree.filter { item in
-                let ext = (item.path as NSString).pathExtension
-                return ext == "swift" || ext == "xcodeproj" || item.path.contains(".pbxproj")
-            }
-            
-            var changedFiles: [String] = []
-            for file in relevantFiles {
-                if let cachedHash = self?.downloadedFileHashes[file.path], cachedHash != file.sha {
-                    changedFiles.append(file.path)
-                } else if self?.downloadedFileHashes[file.path] == nil {
-                    // New file
-                    changedFiles.append(file.path)
+            do {
+                let tree = try JSONDecoder().decode(GitHubTree.self, from: data)
+                print("Fetched tree with \(tree.tree.count) total items")
+                
+                let relevantFiles = tree.tree.filter { item in
+                    let ext = (item.path as NSString).pathExtension
+                    return ext == "swift" ||
+                           ext == "xcodeproj" ||
+                           item.path.contains(".pbxproj")
                 }
+                
+                print("Found \(relevantFiles.count) relevant files")
+                
+                var changedFiles: [String] = []
+                for file in relevantFiles {
+                    if let cachedHash = self?.downloadedFileHashes[file.path], cachedHash != file.sha {
+                        changedFiles.append(file.path)
+                        print("Change detected: \(file.path)")
+                    } else if self?.downloadedFileHashes[file.path] == nil {
+                        changedFiles.append(file.path)
+                        print("New file detected: \(file.path)")
+                    }
+                }
+                
+                print("Total changes found: \(changedFiles.count)")
+                completion(!changedFiles.isEmpty, changedFiles.count, changedFiles)
+                
+            } catch {
+                print("Failed to decode: \(error)")
+                completion(false, 0, nil)
             }
-            
-            completion(!changedFiles.isEmpty, changedFiles.count, changedFiles)
         }.resume()
     }
     
@@ -341,7 +362,10 @@ class UpdateChecker: ObservableObject {
         URLSession.shared.dataTask(with: url) { [weak self] data, response, error in
             DispatchQueue.main.async {
                 self?.isChecking = false
-                guard let data = data, error == nil else { return }
+                guard let data = data, error == nil else {
+                    print("Release check failed: \(error?.localizedDescription ?? "unknown")")
+                    return
+                }
                 
                 do {
                     let releases = try JSONDecoder().decode([GitHubRelease].self, from: data)
@@ -353,12 +377,17 @@ class UpdateChecker: ObservableObject {
                        let releaseVersion = AppVersion(from: release.tag_name),
                        let current = currentVersion {
                         
+                        print("Current version: \(current.stringValue), Latest: \(releaseVersion.stringValue)")
+                        
                         if releaseVersion > current {
+                            print("New version available!")
                             self?.updateAvailable = UpdateInfo(
                                 version: releaseVersion,
                                 release: release
                             )
                             self?.showUpdatePrompt = true
+                        } else {
+                            print("App is up to date")
                         }
                     }
                 } catch {
@@ -377,14 +406,14 @@ class UpdateChecker: ObservableObject {
         }
     }
     
-    func performInitialDownload() {
+    func performInitialFetch() {
         isDownloading = true
-        downloadAndCompareRepository { [weak self] progress, status in
+        fetchAndCompareRepository { [weak self] progress, status in
             DispatchQueue.main.async {
                 self?.downloadProgress = progress
                 self?.downloadStatus = status
             }
-        } completion: { [weak self] success, hasChanges, error in
+        } completion: { [weak self] success, hasChanges, files, error in
             DispatchQueue.main.async {
                 self?.isDownloading = false
                 if success && hasChanges {
@@ -397,12 +426,10 @@ class UpdateChecker: ObservableObject {
     func optOutOfBetaTracking() {
         UserDefaults.standard.set(false, forKey: betaOptInKey)
         UserDefaults.standard.removeObject(forKey: fileHashCacheKey)
-        
-        // Clear cached files
-        try? FileManager.default.removeItem(at: cacheDirectory)
         downloadedFileHashes.removeAll()
-        
+        lastCommitSha = ""
         betaUpdateAvailable = nil
+        print("Opted out of beta tracking, cache cleared")
     }
     
     func isOptedIntoBeta() -> Bool {
@@ -410,16 +437,24 @@ class UpdateChecker: ObservableObject {
     }
     
     func checkForBetaUpdates(force: Bool = false) {
-        guard isOptedIntoBeta() else { return }
+        guard isOptedIntoBeta() else {
+            print("Not opted into beta")
+            return
+        }
         
         let lastCheck = UserDefaults.standard.object(forKey: lastBetaCheckKey) as? Date ?? .distantPast
-        if !force && Date().timeIntervalSince(lastCheck) < 3600 { return }
+        if !force && Date().timeIntervalSince(lastCheck) < 3600 {
+            print("Skipping beta check - last check was \(lastCheck)")
+            return
+        }
         
         UserDefaults.standard.set(Date(), forKey: lastBetaCheckKey)
+        print("Checking for beta updates...")
         
-        checkRemoteForChanges { [weak self] hasChanges, count, files in
+        checkForRemoteChanges { [weak self] hasChanges, count, files in
             DispatchQueue.main.async {
                 if hasChanges {
+                    print("Beta changes found: \(count) files")
                     self?.betaUpdateAvailable = BetaUpdateInfo(
                         hasNewCommits: true,
                         commitCount: count,
@@ -427,6 +462,8 @@ class UpdateChecker: ObservableObject {
                         changedFiles: files
                     )
                     self?.showBetaPrompt = true
+                } else {
+                    print("No beta changes found")
                 }
             }
         }
@@ -439,6 +476,7 @@ class UpdateChecker: ObservableObject {
         let bundleBuild = Bundle.main.infoDictionary?["CFBundleVersion"] as? String ?? "0"
         
         let versionString = "AP\(bundleVersion)_AND0.\(bundleBuild)"
+        print("Current app version string: \(versionString)")
         return AppVersion(from: versionString) ?? AppVersion(from: "AP0.0_AND0.0")
     }
 }
@@ -565,7 +603,6 @@ struct UpdatePromptView: View {
                 }
             }
         }
-        .interactiveDismissDisabled(false)
     }
 }
 
@@ -585,70 +622,62 @@ struct BetaUpdatePromptView: View {
                         .foregroundColor(.orange)
                         .padding(.top, 20)
                     
-                    Text("Beta Update Available!")
+                    Text("Beta Changes Detected!")
                         .font(.system(size: 28, weight: .bold, design: .rounded))
                         .multilineTextAlignment(.center)
                     
-                    Text("New development work detected")
+                    Text("\(betaInfo.commitCount) file\(betaInfo.commitCount > 1 ? "s have" : " has") changed")
                         .font(.title3)
                         .foregroundColor(.orange)
                     
-                    VStack(alignment: .leading, spacing: 16) {
-                        HStack {
-                            Image(systemName: "doc.text.fill")
-                                .foregroundColor(.green)
-                            Text("\(betaInfo.commitCount) file\(betaInfo.commitCount > 1 ? "s" : "") changed")
-                                .font(.body)
-                        }
-                        
-                        if let files = betaInfo.changedFiles, !files.isEmpty {
-                            VStack(alignment: .leading, spacing: 8) {
-                                Text("Changed files:")
-                                    .font(.headline)
-                                    .padding(.top, 8)
-                                
-                                ForEach(files.prefix(5), id: \.self) { file in
-                                    HStack {
-                                        Image(systemName: "doc")
-                                            .font(.caption)
-                                        Text(file)
-                                            .font(.caption)
-                                            .foregroundColor(.secondary)
-                                    }
-                                }
-                                
-                                if files.count > 5 {
-                                    Text("...and \(files.count - 5) more")
+                    if let files = betaInfo.changedFiles, !files.isEmpty {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Changed files:")
+                                .font(.headline)
+                            
+                            ForEach(files.prefix(10), id: \.self) { file in
+                                HStack {
+                                    Image(systemName: "doc.fill")
+                                        .font(.caption)
+                                        .foregroundColor(.blue)
+                                    Text(file)
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
+                                .padding(.vertical, 2)
+                            }
+                            
+                            if files.count > 10 {
+                                Text("...and \(files.count - 10) more")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
                             }
                         }
+                        .padding()
+                        .background(Color(.secondarySystemGroupedBackground))
+                        .cornerRadius(12)
                     }
-                    .padding()
-                    .background(Color(.secondarySystemGroupedBackground))
-                    .cornerRadius(12)
                     
                     VStack(alignment: .leading, spacing: 12) {
                         Text("What would you like to do?")
                             .font(.headline)
                         
                         Button {
-                            updateChecker.downloadAndCompareRepository { progress, status in
-                                // Update UI if needed
-                            } completion: { success, hasChanges, error in
+                            updateChecker.fetchAndCompareRepository { progress, status in
+                                // Progress handled
+                            } completion: { success, hasChanges, files, error in
                                 if success {
                                     dismiss()
                                 }
                             }
                         } label: {
                             HStack {
-                                Image(systemName: "arrow.down.doc")
+                                Image(systemName: "arrow.clockwise")
                                     .font(.title2)
                                 VStack(alignment: .leading) {
-                                    Text("Fetch Latest Changes")
+                                    Text("Refresh & Update Cache")
                                         .font(.system(size: 16, weight: .semibold))
-                                    Text("Update cached file information")
+                                    Text("Fetch latest file hashes")
                                         .font(.caption)
                                         .foregroundColor(.secondary)
                                 }
@@ -670,7 +699,7 @@ struct BetaUpdatePromptView: View {
                                 Image(systemName: "checkmark.circle")
                                     .font(.title2)
                                 VStack(alignment: .leading) {
-                                    Text("Check for Release")
+                                    Text("Check for Stable Release")
                                         .font(.system(size: 16, weight: .semibold))
                                     Text("See if a stable version is available")
                                         .font(.caption)
@@ -694,13 +723,8 @@ struct BetaUpdatePromptView: View {
                             HStack {
                                 Image(systemName: "link.circle")
                                     .font(.title2)
-                                VStack(alignment: .leading) {
-                                    Text("View Repository")
-                                        .font(.system(size: 16, weight: .semibold))
-                                    Text("See changes on GitHub")
-                                        .font(.caption)
-                                        .foregroundColor(.secondary)
-                                }
+                                Text("View on GitHub")
+                                    .font(.system(size: 16, weight: .semibold))
                                 Spacer()
                                 Image(systemName: "chevron.right")
                                     .font(.caption)
@@ -762,18 +786,18 @@ struct BetaOptInView: View {
                 Text("Beta Updates")
                     .font(.system(size: 32, weight: .bold, design: .rounded))
                 
-                Text("Would you like to be notified about beta development?")
+                Text("Track file changes in the GitHub repository")
                     .font(.body)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
                 
                 VStack(alignment: .leading, spacing: 12) {
-                    Label("Get early access to new features", systemImage: "star.fill")
+                    Label("Get notified when code changes", systemImage: "bell.fill")
                         .foregroundColor(.green)
-                    Label("Help shape the app's direction", systemImage: "hand.thumbsup.fill")
+                    Label("See which files were modified", systemImage: "doc.text.magnifyingglass")
                         .foregroundColor(.blue)
-                    Label("Report bugs before public release", systemImage: "ant.fill")
-                        .foregroundColor(.red)
+                    Label("Stay ahead of new features", systemImage: "star.fill")
+                        .foregroundColor(.yellow)
                 }
                 .padding()
                 .background(Color(.secondarySystemGroupedBackground))
@@ -789,10 +813,10 @@ struct BetaOptInView: View {
                         betaOptIn = true
                         hasSeenBetaPrompt = true
                         updateChecker.optIntoBetaTracking()
-                        updateChecker.performInitialDownload()
+                        updateChecker.performInitialFetch()
                         dismiss()
                     } label: {
-                        Text("Yes, Track Beta Updates")
+                        Text("Yes, Track Beta Changes")
                             .font(.headline)
                             .foregroundColor(.white)
                             .frame(maxWidth: .infinity)
@@ -838,20 +862,20 @@ struct WarningCard: View {
             HStack {
                 Image(systemName: "exclamationmark.triangle.fill")
                     .foregroundColor(.yellow)
-                Text("Storage & Data Warning")
+                Text("How Beta Tracking Works")
                     .font(.headline)
                     .foregroundColor(.yellow)
             }
             
-            Text("Beta tracking will:")
+            Text("When you opt in:")
                 .font(.subheadline)
                 .fontWeight(.semibold)
             
-            BulletPoint(text: "Store file hashes for comparison (not full files)")
-            BulletPoint(text: "Use ~5-10MB of additional storage")
-            BulletPoint(text: "Make API calls to GitHub regularly")
-            BulletPoint(text: "Notify you when remote files change")
-            BulletPoint(text: "Never download full source code (just metadata)")
+            BulletPoint(text: "App fetches the file list from GitHub (not full files)")
+            BulletPoint(text: "Stores file hashes to detect changes (~5-10MB)")
+            BulletPoint(text: "Checks for changes every 24 hours")
+            BulletPoint(text: "Shows which files were added/modified")
+            BulletPoint(text: "Never downloads your personal data")
         }
         .padding()
         .background(Color.yellow.opacity(0.1))

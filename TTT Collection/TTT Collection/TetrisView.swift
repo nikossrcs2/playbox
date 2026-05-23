@@ -133,18 +133,24 @@ class TetrisGame: ObservableObject {
     }
 
     func startTimer() {
+        stopTimer() // Always stop existing timer first
         let interval = max(0.1, 0.8 - Double(level - 1) * 0.07)
-        timer?.cancel()
-        timer = Timer.publish(every: interval, on: .main, in: .common)
+        timer = Timer.publish(every: interval, on: .main, in: .common) // Changed to .common mode
             .autoconnect()
-            .sink { [weak self] _ in self?.tick() }
+            .sink { [weak self] _ in
+                self?.tick()
+            }
     }
 
     func stopTimer() { timer?.cancel() }
 
     func togglePause() {
         isPaused.toggle()
-        if isPaused { stopTimer() } else { startTimer() }
+        if isPaused {
+            stopTimer()
+        } else {
+            startTimer()
+        }
     }
 
     func restart() {
@@ -262,13 +268,13 @@ class TetrisGame: ObservableObject {
 struct TetrisView: View {
     @StateObject private var game = TetrisGame()
     @State private var dragStart: CGFloat? = nil
-
+    
     // Fixed chrome heights so cell size can be derived from what remains
     private let topBarHeight: CGFloat = 44
     private let controlsHeight: CGFloat = 72
     private let sidePanelWidth: CGFloat = 80
     private let hPadding: CGFloat = 16   // each side
-
+    
     var body: some View {
         GeometryReader { geo in
             // Available height after safe areas, top bar, controls, and small gaps
@@ -276,27 +282,27 @@ struct TetrisView: View {
             let safeW = geo.size.width
             let boardAreaH = safeH - topBarHeight - controlsHeight - 8
             let boardAreaW = safeW - hPadding * 2 - sidePanelWidth - 12  // 12 = HStack gap
-
+            
             // Cell size = min of width-fit and height-fit, clamped to reasonable range
             let cellFromW = floor(boardAreaW / CGFloat(TetrisGame.cols))
             let cellFromH = floor(boardAreaH / CGFloat(TetrisGame.rows))
             let cellSize = min(cellFromW, cellFromH)
-
+            
             ZStack {
                 Color.black.ignoresSafeArea()
-
+                
                 VStack(spacing: 0) {
                     topBar
                         .frame(height: topBarHeight)
-
+                    
                     HStack(alignment: .top, spacing: 12) {
                         boardView(cellSize: cellSize)
                         sidePanel(cellSize: cellSize)
                     }
                     .padding(.horizontal, hPadding)
-
+                    
                     Spacer(minLength: 0)
-
+                    
                     controls(cellSize: cellSize)
                         .frame(height: controlsHeight)
                 }
@@ -516,11 +522,29 @@ struct TetrisView: View {
     private var pauseOverlay: some View {
         ZStack {
             Color.black.opacity(0.6).ignoresSafeArea()
-            Text("PAUSED")
-                .font(.system(size: 30, weight: .black, design: .monospaced))
-                .foregroundColor(.white)
+            VStack(spacing: 20) {
+                Text("PAUSED")
+                    .font(.system(size: 30, weight: .black, design: .monospaced))
+                    .foregroundColor(.white)
+                
+                Button {
+                    game.togglePause()
+                } label: {
+                    Text("Resume")
+                        .font(.system(size: 18, weight: .bold))
+                        .foregroundColor(.white)
+                        .padding(.horizontal, 40)
+                        .padding(.vertical, 12)
+                        .background(Color.green)
+                        .cornerRadius(10)
+                }
+            }
+        }
+        .onTapGesture {
+            game.togglePause()
         }
     }
+
 }
 
 // MARK: - Next Piece Preview

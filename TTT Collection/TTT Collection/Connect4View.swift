@@ -208,20 +208,34 @@ struct Connect4View: View {
     private func dropDisc(col: Int) {
         guard winner == nil && !isDraw else { return }
         
+        // Find the target row
+        var targetRow = -1
         for row in (0..<rows).reversed() {
             if board[row][col] == nil {
-                withAnimation(.spring(response: 0.25)) {
-                    board[row][col] = currentPlayer
-                }
-                
-                if let w = WinChecker.c4CheckWinner(board: board) {
-                    winner = w
-                } else if WinChecker.c4IsFull(board: board) {
-                    isDraw = true
-                } else {
-                    currentPlayer = currentPlayer.opposite
-                }
-                return
+                targetRow = row
+                break
+            }
+        }
+        
+        guard targetRow != -1 else { return }
+        
+        // Animate dropping
+        withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+            board[targetRow][col] = currentPlayer
+        }
+        
+        // Haptic feedback
+        let generator = UIImpactFeedbackGenerator(style: .medium)
+        generator.impactOccurred()
+        
+        // Check win/draw after animation
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+            if let w = WinChecker.c4CheckWinner(board: self.board) {
+                self.winner = w
+            } else if WinChecker.c4IsFull(board: self.board) {
+                self.isDraw = true
+            } else {
+                self.currentPlayer = self.currentPlayer.opposite
             }
         }
     }

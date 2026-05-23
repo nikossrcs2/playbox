@@ -112,6 +112,11 @@ private final class WordleViewModel: ObservableObject {
 
     private(set) var targetWord: [Character] = Array("SWIFT")
 
+    /// Incremented on every new game. Async closures capture the value at
+    /// dispatch time and bail out if it has changed by the time they fire,
+    /// preventing stale tile-reveal blocks from corrupting a freshly reset grid.
+    private var gameGeneration = 0
+
     private let monitor = NWPathMonitor()
     private var isOnline = false
 
@@ -129,7 +134,14 @@ private final class WordleViewModel: ObservableObject {
         isLoadingWord = true
         message = ""
 
-        // Try cached first (instant)
+        // After a completed game always pick a fresh random word so the
+        // player isn't shown the same (already-solved) NYT word again.
+        if gameOver {
+            applyRandomFallbackWord()
+            return
+        }
+
+        // Try cached NYT word first (instant)
         if let cached = WordleWordService.shared.cachedTodayWord {
             applyWord(cached, source: "Today's NYT Wordle")
             return
@@ -141,14 +153,18 @@ private final class WordleViewModel: ObservableObject {
                 if let w = word {
                     self.applyWord(w, source: "Today's NYT Wordle")
                 } else {
-                    self.applyWord(WordleWordService.shared.randomFallbackWord(), source: "Offline — random word")
+                    self.applyRandomFallbackWord()
                 }
             }
         } else {
-            applyWord(WordleWordService.shared.randomFallbackWord(), source: "Offline — random word")
+            applyRandomFallbackWord()
         }
     }
 
+    private func applyRandomFallbackWord() {
+        let randomWord = WordleWordList.answers.randomElement()?.uppercased() ?? "SWIFT"
+        applyWord(randomWord, source: "Random Word")
+    }
     private func applyWord(_ word: String, source: String) {
         targetWord = Array(word.uppercased())
         wordSource = source
@@ -157,6 +173,7 @@ private final class WordleViewModel: ObservableObject {
     }
 
     func resetGrid() {
+        gameGeneration += 1
         grid        = Array(repeating: Array(repeating: " ", count: 5), count: 6)
         tileStates  = Array(repeating: Array(repeating: .empty,  count: 5), count: 6)
         currentRow  = 0
@@ -224,17 +241,18 @@ private final class WordleViewModel: ObservableObject {
         }
 
         // Animate tiles with stagger
+        let capturedGeneration = gameGeneration
         for i in 0..<5 {
             let delay = Double(i) * 0.08
             DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
-                guard let self else { return }
+                guard let self, self.gameGeneration == capturedGeneration else { return }
                 self.tileStates[self.currentRow][i] = result[i]
             }
         }
 
         // Update keyboard after tile reveal
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self else { return }
+            guard let self, self.gameGeneration == capturedGeneration else { return }
             for i in 0..<5 {
                 let ch = guess[i]
                 let state = result[i]

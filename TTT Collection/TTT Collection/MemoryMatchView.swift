@@ -23,10 +23,7 @@ private struct MemoryCard: Identifiable {
 private final class MemoryMatchViewModel: ObservableObject {
     // Grid sizes per level: (cols, rows)
     private static let levels: [(cols: Int, rows: Int)] = [
-        (4, 3), // 12 cards, 6 pairs – Level 1
-        (4, 4), // 16 cards, 8 pairs – Level 2
-        (4, 5), // 20 cards, 10 pairs – Level 3
-        (6, 5), // 30 cards, 15 pairs – Level 4
+        (4, 3), (4, 4), (4, 5), (5, 5), (5, 6), (6, 6), (6, 7), (7, 7), (7, 8), (8, 8)
     ]
 
     private static let allSymbols = [
@@ -341,7 +338,7 @@ struct MemoryMatchView: View {
         }
     }
 
-    private static let levelsCount = 4
+    private static let levelsCount = 10
 }
 
 #Preview {

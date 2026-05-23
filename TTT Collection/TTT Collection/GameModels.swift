@@ -33,9 +33,9 @@ enum GameMode: String, CaseIterable, Identifiable {
 
     var displayName: String {
         switch self {
-        case .vsHuman: return "Two Players"
-        case .vsBot:   return "vs Bot"
-        case .aiVsAi:  return "AI Battle"
+        case .vsHuman: return String(localized: "Two Players")
+        case .vsBot:   return String(localized: "vs Bot")
+        case .aiVsAi:  return String(localized: "AI Battle")
         }
     }
 }
@@ -57,9 +57,9 @@ enum BotDifficulty: String, CaseIterable, Identifiable {
     }
     var description: String {
         switch self {
-        case .easy:   return "Random moves"
-        case .hard:   return "Minimax AI"
-        case .neural: return "Trained neural net"
+        case .easy:   return String(localized: "Random moves")
+        case .hard:   return String(localized: "Minimax AI")
+        case .neural: return String(localized: "Trained neural net")
         }
     }
 }
@@ -118,49 +118,49 @@ enum GameType: String, CaseIterable, Identifiable, Hashable {
 
     var title: String {
         switch self {
-        case .classic:      return "Classic"
-        case .superTTT:     return "Super TTT"
-        case .notakto:      return "Notakto"
-        case .wild:         return "Wild TTT"
-        case .connect4:     return "Connect 4"
-        case .snake:        return "Snake"
-        case .solitaire:    return "Solitaire"
-        case .brickBreaker: return "Brick Breaker"
-        case .minesweeper:  return "Minesweeper"
-        case .twenty48:     return "2048"
-        case .wordle:       return "Wordle"
-        case .checkers:     return "Checkers"
-        case .chess:        return "Chess"
-        case .memoryMatch:  return "Memory Match"
-        case .stack:        return "Stack"
-        case .aimTrainer:   return "Aim Trainer"
-        case .flappyBird:   return "Flappy Bird"
-        case .tetris:       return "Tetris"
-        case .blackjack:     return "Blackjack"
+        case .classic:      return String(localized: "Classic")
+        case .superTTT:     return String(localized: "Super TTT")
+        case .notakto:      return String(localized: "Notakto")
+        case .wild:         return String(localized: "Wild TTT")
+        case .connect4:     return String(localized: "Connect 4")
+        case .snake:        return String(localized: "Snake")
+        case .solitaire:    return String(localized: "Solitaire")
+        case .brickBreaker: return String(localized: "Brick Breaker")
+        case .minesweeper:  return String(localized: "Minesweeper")
+        case .twenty48:     return String(localized: "2048")
+        case .wordle:       return String(localized: "Wordle")
+        case .checkers:     return String(localized: "Checkers")
+        case .chess:        return String(localized: "Chess")
+        case .memoryMatch:  return String(localized: "Memory Match")
+        case .stack:        return String(localized: "Stack")
+        case .aimTrainer:   return String(localized: "Aim Trainer")
+        case .flappyBird:   return String(localized: "Flappy Bird")
+        case .tetris:       return String(localized: "Tetris")
+        case .blackjack:    return String(localized: "Blackjack")
         }
     }
 
     var subtitle: String {
         switch self {
-        case .classic:      return "The original 3×3 game"
-        case .superTTT:     return "9 boards inside a board"
-        case .notakto:      return "Misère – avoid 3-in-a-row!"
-        case .wild:         return "Choose X or O each turn"
-        case .connect4:     return "Connect 4 in a row to win"
-        case .snake:        return "Eat, grow, don't crash"
-        case .solitaire:    return "Classic Klondike patience"
-        case .brickBreaker: return "Break bricks with a paddle"
-        case .minesweeper:  return "Flag mines, clear the field"
-        case .twenty48:     return "Merge tiles to reach 2048"
-        case .wordle:       return "Guess the 5-letter word"
-        case .checkers:     return "Capture all opponent pieces"
-        case .chess:        return "Strategic board game"
-        case .memoryMatch:  return "Find all matching pairs"
-        case .stack:        return "Stack the blocks perfectly"
-        case .aimTrainer:   return "Test your reaction speed"
-        case .flappyBird:   return "Tap to keep flying"
-        case .tetris:       return "Stack blocks, clear lines"
-        case .blackjack:      return "Guess cards to reach 21"
+        case .classic:      return String(localized: "The original 3×3 game")
+        case .superTTT:     return String(localized: "9 boards inside a board")
+        case .notakto:      return String(localized: "Misère – avoid 3-in-a-row!")
+        case .wild:         return String(localized: "Choose X or O each turn")
+        case .connect4:     return String(localized: "Connect 4 in a row to win")
+        case .snake:        return String(localized: "Eat, grow, don't crash")
+        case .solitaire:    return String(localized: "Classic Klondike patience")
+        case .brickBreaker: return String(localized: "Break bricks with a paddle")
+        case .minesweeper:  return String(localized: "Flag mines, clear the field")
+        case .twenty48:     return String(localized: "Merge tiles to reach 2048")
+        case .wordle:       return String(localized: "Guess the 5-letter word")
+        case .checkers:     return String(localized: "Capture all opponent pieces")
+        case .chess:        return String(localized: "Strategic board game")
+        case .memoryMatch:  return String(localized: "Find all matching pairs")
+        case .stack:        return String(localized: "Stack the blocks perfectly")
+        case .aimTrainer:   return String(localized: "Test your reaction speed")
+        case .flappyBird:   return String(localized: "Tap to keep flying")
+        case .tetris:       return String(localized: "Stack blocks, clear lines")
+        case .blackjack:    return String(localized: "Guess cards to reach 21")
         }
     }
 
@@ -184,7 +184,7 @@ enum GameType: String, CaseIterable, Identifiable, Hashable {
         case .aimTrainer:   return "target"
         case .flappyBird:   return "bird.fill"
         case .tetris:       return "square.3.layers.3d.down.left"
-        case .blackjack:     return "suit.spade.fill"
+        case .blackjack:    return "suit.spade.fill"
         }
     }
 

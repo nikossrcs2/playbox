@@ -117,12 +117,83 @@ private class MinesweeperGame: ObservableObject {
         if !board[row][col].isFlagged && flagsRemaining > 0 {
             board[row][col].isFlagged = true
             flagsRemaining -= 1
+            
+            // After flagging, check if we can auto-clear surrounding cells
+            autoClearAdjacentIfNeeded(row: row, col: col)
         } else if board[row][col].isFlagged {
             board[row][col].isFlagged = false
             flagsRemaining += 1
         }
         
         checkWin()
+    }
+    
+    // MARK: - Auto Clear (Chord)
+    
+    /// When a revealed cell has the same number of adjacent flags as its mine count,
+    /// auto-reveal all adjacent non-flagged cells.
+    func autoClearChord(row: Int, col: Int) {
+        guard !gameOver && !win else { return }
+        guard board[row][col].isRevealed else { return }
+        
+        let cell = board[row][col]
+        let adjacentCells = getAdjacentCells(row: row, col: col)
+        let flagCount = adjacentCells.filter { $0.isFlagged }.count
+        
+        // Only auto-clear if flags match the mine count
+        if flagCount == cell.adjacentMines && cell.adjacentMines > 0 {
+            var hasIncorrectFlag = false
+            var cellsToReveal: [(Int, Int)] = []
+            
+            // Check for incorrect flags
+            for (nr, nc, isFlagged, isRevealed, isMine) in adjacentCells.map({ ($0.row, $0.col, $0.isFlagged, $0.isRevealed, $0.isMine) }) {
+                if isFlagged && !isMine {
+                    hasIncorrectFlag = true
+                    break
+                }
+                if !isFlagged && !isRevealed {
+                    cellsToReveal.append((nr, nc))
+                }
+            }
+            
+            // Only auto-clear if no incorrect flags
+            if !hasIncorrectFlag {
+                for (nr, nc) in cellsToReveal {
+                    revealCell(row: nr, col: nc)
+                }
+            }
+        }
+    }
+    
+    /// Called after flagging to check if any revealed cells can be auto-cleared
+    private func autoClearAdjacentIfNeeded(row: Int, col: Int) {
+        // Check all adjacent revealed cells
+        for dr in -1...1 {
+            for dc in -1...1 {
+                let nr = row + dr
+                let nc = col + dc
+                if nr >= 0 && nr < rows && nc >= 0 && nc < cols {
+                    if board[nr][nc].isRevealed {
+                        autoClearChord(row: nr, col: nc)
+                    }
+                }
+            }
+        }
+    }
+    
+    private func getAdjacentCells(row: Int, col: Int) -> [(row: Int, col: Int, isFlagged: Bool, isRevealed: Bool, isMine: Bool)] {
+        var adjacent: [(row: Int, col: Int, isFlagged: Bool, isRevealed: Bool, isMine: Bool)] = []
+        for dr in -1...1 {
+            for dc in -1...1 {
+                if dr == 0 && dc == 0 { continue }
+                let nr = row + dr
+                let nc = col + dc
+                if nr >= 0 && nr < rows && nc >= 0 && nc < cols {
+                    adjacent.append((row: nr, col: nc, isFlagged: board[nr][nc].isFlagged, isRevealed: board[nr][nc].isRevealed, isMine: board[nr][nc].isMine))
+                }
+            }
+        }
+        return adjacent
     }
     
     private func checkWin() {
@@ -151,6 +222,19 @@ private class MinesweeperGame: ObservableObject {
                 }
             }
         }
+    }
+    
+    // Helper for UI to know if auto-clear is possible on a cell
+    func canAutoClear(row: Int, col: Int) -> Bool {
+        guard board[row][col].isRevealed else { return false }
+        let cell = board[row][col]
+        if cell.adjacentMines == 0 { return false }
+        
+        let adjacentCells = getAdjacentCells(row: row, col: col)
+        let flagCount = adjacentCells.filter { $0.isFlagged }.count
+        let unrevealedCount = adjacentCells.filter { !$0.isRevealed && !$0.isFlagged }.count
+        
+        return flagCount == cell.adjacentMines && unrevealedCount > 0
     }
 }
 
@@ -231,6 +315,7 @@ struct MinesweeperView: View {
     @ViewBuilder
     private func cellView(row: Int, col: Int, size: CGFloat) -> some View {
         let cell = game.board[row][col]
+        let canAuto = game.canAutoClear(row: row, col: col)
         
         ZStack {
             Rectangle()
@@ -256,9 +341,21 @@ struct MinesweeperView: View {
                     .foregroundColor(.red)
                     .font(.system(size: size * 0.5))
             }
+            
+            // Visual hint for auto-clear
+            if canAuto && !cell.isRevealed && !cell.isFlagged {
+                RoundedRectangle(cornerRadius: 2)
+                    .stroke(Color.yellow.opacity(0.5), lineWidth: 1.5)
+                    .frame(width: size - 4, height: size - 4)
+            }
         }
         .frame(width: size, height: size)
-        .onTapGesture {
+        .onTapGesture(count: 2) {
+            if !game.gameOver {
+                game.autoClearChord(row: row, col: col)
+            }
+        }
+        .onTapGesture(count: 1) {
             if !game.gameOver {
                 game.revealCell(row: row, col: col)
             }

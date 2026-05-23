@@ -62,9 +62,9 @@ struct HomeView: View {
                     .foregroundColor(.secondary)
             }
             Spacer()
-            HStack(spacing: 12) {
-                settingsButton
+            VStack(spacing: 12) {
                 muteButton
+                settingsButton
             }
         }
         .padding(.top, 16)
@@ -184,16 +184,19 @@ struct EasterEggView: View {
     }
 
     private let credits: [CreditRow] = [
-        .init("Quality Assurance",     "BigMannn"),
-        .init("Translations (German)", "Niko"),
-        .init("Translations (Other)",  "None yet!\nContribute at github.com/nikos-projects/playbox",
+        .init(String(localized: "Quality Assurance"),     String(localized: "BigMannn")),
+        .init(String(localized:"Translations (German)"), String(localized:"Niko")),
+        .init(String(localized:"Translations (EN/RU/ES/IT)"),  String(localized:"Claude")),
+        .init(String(localized:"Translations (Other)"),  String(localized:"None yet!\nContribute at github.com/nikos-projects/playbox"),
               link: URL(string: "https://github.com/nikos-projects/playbox")),
-        .init("Coding",                "Gemini, Claude & DeepSeek\n(Prompts by Niko — \"Do i look like i know swift?\" – Niko, python dev, 2026)"),
-        .init("Art",                   "App icon: Glow added by Gemini,\ninitially made by ChatGPT"),
-        .init("Music",                 "Google Lyria 3"),
-        .init("SFX",                   "Find a way to add 'em and\nyou get credit here 😄"),
-        .init("Contact",               "steve.jobless.lololol@gmail.com\n@niko_3992 on Discord",
+        .init(String(localized:"Coding"),                String(localized:"Suprisingly a few lines by Niko, Gemini, Claude & DeepSeek\n(Prompts by Niko — \"Do i look like i know swift?\" – Niko, python dev, 2026)")),
+        .init(String(localized:"Art"),                   String(localized:"App icon: Glow added by Gemini,\ninitially made by ChatGPT")),
+        .init(String(localized:"Music"),                 String(localized:"Google Lyria 3")),
+        .init(String(localized:"SFX"),                   String(localized:"Find a way to add them and you get credits here :D")),
+        .init(String(localized:"Contact"),               "steve.jobless.lololol@gmail.com",
               link: URL(string: "mailto:steve.jobless.lololol@gmail.com")),
+        .init(String(localized:"Discord"),               "Nikos Projects (silly)",
+              link: URL(string: "https://discord.gg/kXKRaZbVyr")),
     ]
 
     var body: some View {

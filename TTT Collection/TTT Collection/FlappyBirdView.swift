@@ -110,8 +110,7 @@ private final class FlappyBirdViewModel: ObservableObject {
         let t = Timer(timeInterval: 1/60, repeats: true) { [weak self] _ in
             self?.updateGame()
         }
-        // .common mode keeps the timer firing during SwiftUI touch-tracking,
-        // eliminating the input lag caused by the default run-loop mode pausing.
+        // Use .common mode for better touch responsiveness
         RunLoop.main.add(t, forMode: .common)
         gameLoop = t
     }
