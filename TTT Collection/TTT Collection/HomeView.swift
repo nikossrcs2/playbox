@@ -32,11 +32,11 @@ struct HomeView: View {
                     label: { EmptyView() }
                 )
             )
-            .sheet(isPresented: $showingSettings) {
-                SettingsView()
-            }
         }
         .navigationViewStyle(.stack)
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
+        }
         .sheet(isPresented: $showEasterEgg) {
             EasterEggView()
         }
