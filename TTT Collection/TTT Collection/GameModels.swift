@@ -84,7 +84,7 @@ enum GameCategory: String, CaseIterable, Identifiable, Hashable {
     var games: [GameType] {
         switch self {
         case .tictactoe: return [.classic, .superTTT, .notakto, .wild, .connect4]
-        case .arcade:    return [.snake, .solitaire, .brickBreaker, .minesweeper, .twenty48, .memoryMatch, .stack, .aimTrainer, .flappyBird, .tetris, .blackjack]
+        case .arcade:    return [.snake, .solitaire, .chaosSolitaire, .brickBreaker, .minesweeper, .twenty48, .memoryMatch, .stack, .aimTrainer, .flappyBird, .tetris, .blackjack]
         case .puzzles:   return [.wordle, .checkers, .chess]
         }
     }
@@ -112,7 +112,8 @@ enum GameType: String, CaseIterable, Identifiable, Hashable {
     case aimTrainer   = "Aim Trainer"
     case flappyBird   = "Flappy Bird"
     case tetris       = "Tetris"
-    case blackjack    = "Blackjack"
+    case blackjack      = "Blackjack"
+    case chaosSolitaire = "Chaos Solitaire"
 
     var id: String { rawValue }
 
@@ -137,6 +138,7 @@ enum GameType: String, CaseIterable, Identifiable, Hashable {
         case .flappyBird:   return String(localized: "Flappy Bird")
         case .tetris:       return String(localized: "Tetris")
         case .blackjack:    return String(localized: "Blackjack")
+        case .chaosSolitaire: return String(localized: "Chaos Solitaire")
         }
     }
 
@@ -161,6 +163,7 @@ enum GameType: String, CaseIterable, Identifiable, Hashable {
         case .flappyBird:   return String(localized: "Tap to keep flying")
         case .tetris:       return String(localized: "Stack blocks, clear lines")
         case .blackjack:    return String(localized: "Guess cards to reach 21")
+        case .chaosSolitaire: return String(localized: "Cheat freely. Cursed cards. Pure chaos.")
         }
     }
 
@@ -185,6 +188,7 @@ enum GameType: String, CaseIterable, Identifiable, Hashable {
         case .flappyBird:   return "bird.fill"
         case .tetris:       return "square.3.layers.3d.down.left"
         case .blackjack:    return "suit.spade.fill"
+        case .chaosSolitaire: return "wand.and.stars"
         }
     }
 
@@ -209,6 +213,7 @@ enum GameType: String, CaseIterable, Identifiable, Hashable {
         case .flappyBird:   return .yellow
         case .tetris:       return .cyan
         case .blackjack:    return .red
+        case .chaosSolitaire: return .purple
         }
     }
 

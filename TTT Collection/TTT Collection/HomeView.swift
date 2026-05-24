@@ -135,6 +135,7 @@ struct HomeView: View {
         switch game {
         case .snake:        SnakeView()
         case .solitaire:    SolitaireView()
+        case .chaosSolitaire: ChaosSolitaireView()
         case .brickBreaker: BrickBreakerView()
         case .minesweeper:  MinesweeperView()
         case .twenty48:     Twenty48View()

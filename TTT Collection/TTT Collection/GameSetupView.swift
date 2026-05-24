@@ -184,6 +184,7 @@ struct GameSetupView: View {
         case .connect4:     Connect4View(mode: mode, difficulty: difficulty)
         case .snake:        SnakeView()
         case .solitaire:    SolitaireView()
+        case .chaosSolitaire: ChaosSolitaireView()
         case .brickBreaker: BrickBreakerView()
         case .minesweeper:  MinesweeperView()
         case .twenty48:     Twenty48View()
@@ -243,6 +244,8 @@ extension GameType {
             return String(localized: "Stack falling tetrominoes to fill complete lines. Clear lines to score — 4 at once is a Tetris! Tap to rotate, swipe to move, swipe down to drop.")
         case .blackjack:
             return String(localized: "Draw cards and try to get as close to 21 as you can without busting!")
+        case .chaosSolitaire:
+            return String(localized: "Klondike with a cheat menu and optional cursed mode. Reveal cards, skip to aces, inject chaos, and play with ranks from -30 to 15.")
         }
     }
 }
